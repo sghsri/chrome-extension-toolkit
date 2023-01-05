@@ -28,6 +28,6 @@ jobs:
       - name: Test Code
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run test:unit
+        run: npm run test
       - name: Jest coverage comment
         uses: MishaKav/jest-coverage-comment@main
