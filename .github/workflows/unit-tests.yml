@@ -1,0 +1,33 @@
+name: Unit Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.ref }}-unit
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@master
+      - name: Get file permission
+        run: chmod -R 777 .
+
+      - name: Try Cached Node Modules
+        id: cache-node-modules
+        uses: actions/cache@master
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
+      - name: Install Node Modules
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+      - name: Test Code
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run test:unit
+      - name: Jest coverage comment
+        uses: MishaKav/jest-coverage-comment@main
