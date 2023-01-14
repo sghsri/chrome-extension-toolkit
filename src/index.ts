@@ -11,10 +11,10 @@ interface Test extends MessageDefinition {
 
 const m = createBackgroundMessenger<Test>();
 
-let x = await m.openNewTab({ url: new URL('https://google.com') });
+// let x = await m.openNewTab({ url: new URL('https://google.com') });
 
-const handler: MessageHandler<Test> = {
-    openNewTab({ data, sendResponse, sender }) {
-        sendResponse([])
-    },
-};
+// const handler: MessageHandler<Test> = {
+//     openNewTab({ data, sendResponse, sender }) {
+//         sendResponse([])
+//     },
+// };
