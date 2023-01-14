@@ -14,7 +14,6 @@
     "allowJs": true,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "incremental": true,
     "lib": [
       "DOM",
       "es2021"
