@@ -1,4 +1,4 @@
-import { SerialWrapper } from './Serialization';
+import { JSON } from './Serialization';
 
 /**
  * MessageDefinition is a record of message names and their data types.
@@ -31,7 +31,7 @@ export enum MessageEndpoint {
  */
 export type MessageHandler<M extends MessageDefinition> = {
     [K in keyof M]: (context: {
-        data: SerialWrapper<Parameters<M[K]>[0]>;
+        data: JSON<Parameters<M[K]>[0]>;
         sender: chrome.runtime.MessageSender;
         sendResponse: (response: ReturnType<M[K]>) => void;
     }) => Promise<void> | void;

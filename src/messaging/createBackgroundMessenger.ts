@@ -1,10 +1,10 @@
-import { MessageDefinition, MessageEndpoint, Message } from 'src/@types';
+import { MessageDefinition, MessageEndpoint, Message, Serializable } from 'src/@types';
 
 /**
  * An object that can be used to send messages to the background script.
  */
 export type BackgroundMessenger<M extends MessageDefinition> = {
-    [K in keyof M]: (...args: Parameters<M[K]>) => Promise<ReturnType<M[K]>>;
+    [K in keyof M]: (...args: Parameters<M[K]>) => Promise<Serializable<ReturnType<M[K]>>>;
 };
 
 /**
@@ -23,7 +23,7 @@ export function createBackgroundMessenger<M extends MessageDefinition>(): Backgr
                         from: MessageEndpoint.TAB,
                         to: MessageEndpoint.BACKGROUND,
                     };
-                    chrome.runtime.sendMessage(message, (response: ReturnType<M[keyof M]>) => {
+                    chrome.runtime.sendMessage(message, (response: Serializable<ReturnType<M[keyof M]>>) => {
                         if (chrome.runtime.lastError) {
                             reject(chrome.runtime.lastError);
                         } else {

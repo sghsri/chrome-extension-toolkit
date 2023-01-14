@@ -1,56 +1,25 @@
-type DataPropertyNames<T> = {
-    // eslint-disable-next-line @typescript-eslint/ban-types
+/* eslint-disable jsdoc/require-jsdoc */
+
+type Primitive = string | number | boolean | null | undefined | void;
+
+type PrimitiveKeys<T> = {
     [K in keyof T]: T[K] extends Function | symbol ? never : K;
 }[keyof T];
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-/**
- *
- */
-export type Serialized<T> = {
-    // eslint-disable-next-line @typescript-eslint/ban-types
-    [P in DataPropertyNames<T>]: T[P] extends undefined
-        ? undefined | T[P]
-        : T[P] extends object
-        ? Serializable<T[P]>
-        : T[P];
+export type JSON<T> = {
+    [K in PrimitiveKeys<T>]: T[K] extends undefined & infer U
+        ? undefined & JSON<U>
+        : T[K] extends Primitive
+        ? T[K]
+        : T[K] extends Array<infer U>
+        ? JSON<U>[]
+        : T[K] extends object
+        ? JSON<T[K]>
+        : T[K];
 };
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-/**
- *
- */
-export type Serializable<T> = T extends number[]
-    ? number[]
-    : T extends boolean[]
-    ? boolean[]
-    : T extends string[]
-    ? string[]
-    : T extends undefined[]
-    ? undefined[]
-    : T extends void[]
-    ? void[]
-    : T extends null[]
-    ? null[]
-    : T extends any[]
-    ? Serialized<T[number]>[]
-    : Serialized<T>;
+export type Serializable<T> = T extends Primitive ? T : JSON<T>;
 
-/**
- *
- */
-export type SerialWrapper<T> = T extends string
-    ? string
-    : T extends number
-    ? number
-    : T extends boolean
-    ? boolean
-    : T extends undefined
-    ? undefined
-    : T extends void
-    ? void
-    : T extends null
-    ? null
-    : Serializable<T>;
-
-type MapToSerialWrapper<T> = { [K in keyof T]: SerialWrapper<T[K]> };
+export function serialize<T>(value: T): Serializable<T> {
+    return JSON.parse(JSON.stringify(value)) as Serializable<T>;
+}
