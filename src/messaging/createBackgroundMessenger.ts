@@ -35,5 +35,3 @@ export function createBackgroundMessenger<M extends MessageDefinition>(): Backgr
     });
     return sender;
 }
-
-console.log('createBackgroundMessenger.ts loaded');
