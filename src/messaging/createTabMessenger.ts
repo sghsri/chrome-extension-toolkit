@@ -10,3 +10,7 @@ type AddParameters<TFunction extends (...args: any) => any, TParameters extends 
 export type TabMessageSender<M extends MessageDefinition> = {
     [K in keyof M]: AddParameters<(...args: Parameters<M[K]>) => Promise<ReturnType<M[K]>>, [tabId: number]>;
 };
+
+export function createTabMessenger() {
+    return {};
+}
