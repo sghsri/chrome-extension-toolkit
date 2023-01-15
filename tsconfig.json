@@ -36,7 +36,8 @@
   "include": [
     "src/**/*.ts",
     "test/**/*.ts",
-    "jest.config.ts"
+    "jest.config.ts",
+    "package.json"
   ],
   "exclude": [
     "node_modules",
