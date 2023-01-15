@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "files": [
-    "dist",
+    "dist/*",
     "package.json",
     "README.md"
   ],
