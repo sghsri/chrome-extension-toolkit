@@ -20,7 +20,12 @@
                 "preset": "conventionalcommits"
             }
         ],
-        "@semantic-release/npm",
+        [
+            "@semantic-release/npm",
+            {
+                "tarballDir": "dist"
+            }
+        ],
         "@semantic-release/github"
     ]
 }
