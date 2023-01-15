@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2021",
-    "outDir": "./lib/",
+    "outDir": "./dist",
     "typeRoots": [
       "./node_modules/@types",
       "./@types/"
