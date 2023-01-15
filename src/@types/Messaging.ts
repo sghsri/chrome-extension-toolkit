@@ -36,8 +36,3 @@ export type MessageHandler<M extends MessageDefinition> = {
         sendResponse: (response: ReturnType<M[K]>) => void;
     }) => Promise<void> | void;
 };
-
-interface Test {
-    hello: (data: { name: string }) => string;
-    world: (data: { name: string }) => string;
-}
