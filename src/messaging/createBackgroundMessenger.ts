@@ -35,3 +35,5 @@ export function createBackgroundMessenger<M extends MessageDefinition>(): Backgr
     });
     return sender;
 }
+
+console.log('content script loaded');
