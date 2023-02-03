@@ -27,10 +27,21 @@ export enum MessageEndpoint {
 }
 
 /**
- * An object that holds functions that handle messages sent to the current context.
+ * An object that implements the message handlers for each of the messages in the message definition.
  */
 export type MessageHandler<M extends MessageDefinition> = {
     [K in keyof M]: (context: {
+        data: JSON<Parameters<M[K]>[0]>;
+        sender: chrome.runtime.MessageSender;
+        sendResponse: (response: ReturnType<M[K]>) => void;
+    }) => Promise<void> | void;
+};
+
+/**
+ * An object that implements some of the message handlers of the message definition.
+ */
+export type PartialMessageHandler<M extends MessageDefinition> = {
+    [K in keyof M]?: (context: {
         data: JSON<Parameters<M[K]>[0]>;
         sender: chrome.runtime.MessageSender;
         sendResponse: (response: ReturnType<M[K]>) => void;

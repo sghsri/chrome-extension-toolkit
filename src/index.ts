@@ -1,2 +1,2 @@
 export * from './messaging';
-export * from './@types';
+export * from './types';

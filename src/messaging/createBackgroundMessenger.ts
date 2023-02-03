@@ -1,4 +1,4 @@
-import { MessageDefinition, MessageEndpoint, Message, Serializable } from 'src/@types';
+import { MessageDefinition, MessageEndpoint, Message, Serializable } from 'src/types';
 
 /**
  * An object that can be used to send messages to the background script.
