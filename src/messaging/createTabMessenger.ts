@@ -14,3 +14,4 @@ export type TabMessageSender<M extends MessageDefinition> = {
 export function createTabMessenger() {
     return {};
 }
+
