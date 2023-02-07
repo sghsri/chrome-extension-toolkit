@@ -1,2 +1,2 @@
-export * from './createBackgroundMessenger';
-export * from './createTabMessenger';
+export * from './createMessenger';
+export * from './MessageListener';

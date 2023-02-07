@@ -7,7 +7,7 @@ const config: Options = {
     format: ['esm'],
     outExtension({ format }) {
         return {
-            js: `.${format}.js`,
+            js: `.js`,
         };
     },
 };

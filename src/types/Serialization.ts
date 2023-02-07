@@ -18,42 +18,36 @@ type PrimitiveKeys<T> = {
  * Because of the nature of the chrome.runtime.sendMessage and chrome.storage APIs,
  * all the values that go through them will be serialized and deserialized, thus losing any function or symbol properties.
  *
- * @example JSON<{
+ * @example Serialized<{
  * openNewTab: (url: string) => void,
  * count: number,
  * url: URL,
  * }> = { count: number, url: JSON<URL> }
  * @example
  */
-export type JSON<T> = {
+export type Serialized<T> = {
     [K in PrimitiveKeys<T>]: T[K] extends undefined & infer U
-        ? undefined & JSON<U>
+        ? undefined & Serialized<U>
         : T[K] extends Primitive
         ? T[K]
         : T[K] extends Array<infer U>
-        ? JSON<U>[]
+        ? Serialized<U>[]
         : T[K] extends object
         ? T[K] extends Date
             ? string
             : T[K] extends RegExp | Error
             ? {}
-            : JSON<T[K]>
+            : Serialized<T[K]>
         : T[K];
 };
 
 /**
  * A type that represents a value that can be serialized, but doesn't have to be if its a primitive value.
- * @example Serializable<string> = string
- * @example Serializable<{ foo: string }> = { foo: string }
+ * @example JSON<string> = string
+ * @example JSON<{ foo: string }> = { foo: string }
  */
-export type Serializable<T> = T extends Primitive
-    ? T
-    : T extends Date
-    ? string
-    : T extends RegExp | Error
-    ? {}
-    : JSON<T>;
+export type JSON<T> = T extends Primitive ? T : T extends Date ? string : T extends RegExp | Error ? {} : Serialized<T>;
 
-export function serialize<T>(value: T): Serializable<T> {
-    return JSON.parse(JSON.stringify(value)) as Serializable<T>;
+export function serialize<T>(value: T): JSON<T> {
+    return JSON.parse(JSON.stringify(value)) as JSON<T>;
 }

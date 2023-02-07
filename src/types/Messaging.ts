@@ -22,8 +22,10 @@ export type Message<M extends MessageDefinition> = {
  * The context is either the background script/service worker or a tab.
  */
 export enum MessageEndpoint {
+    /** The background script or service worker. */
     BACKGROUND = 'BACKGROUND',
-    TAB = 'TAB',
+    /** A tab or extension page (popup, options, etc) */
+    VIEW = 'VIEW',
 }
 
 /**
@@ -31,19 +33,29 @@ export enum MessageEndpoint {
  */
 export type MessageHandler<M extends MessageDefinition> = {
     [K in keyof M]: (context: {
+        /** The data sent with the message. */
         data: JSON<Parameters<M[K]>[0]>;
+        /** The tab or page or background service worker that sent the message. */
         sender: chrome.runtime.MessageSender;
+        /** A function that can be used to send a response asynchronously to the sender. */
         sendResponse: (response: ReturnType<M[K]>) => void;
     }) => Promise<void> | void;
 };
 
 /**
- * An object that implements some of the message handlers of the message definition.
+ * An object that can be used to handle messages coming from another extension context.
  */
-export type PartialMessageHandler<M extends MessageDefinition> = {
-    [K in keyof M]?: (context: {
-        data: JSON<Parameters<M[K]>[0]>;
-        sender: chrome.runtime.MessageSender;
-        sendResponse: (response: ReturnType<M[K]>) => void;
-    }) => Promise<void> | void;
-};
+export interface IMessageListener<M extends MessageDefinition> {
+    /**
+     * Starts listening for messages. When a message is received, the corresponding message handler is called.
+     */
+    listen: (handler: MessageHandler<M>) => void;
+    /**
+     * Stops listening for messages.
+     */
+    unlisten: () => void;
+    /**
+     * @returns A string representation of the message listener.
+     */
+    toString: () => string;
+}

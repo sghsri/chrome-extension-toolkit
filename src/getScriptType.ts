@@ -5,7 +5,7 @@ export enum ScriptType {
     EXTENSION_PAGE = 'extension_page',
 }
 
-export function getScriptType(): ScriptType | null {
+export default function getScriptType(): ScriptType | null {
     if (!chrome.runtime.id) {
         // we are not in a chrome extension
         return null;
