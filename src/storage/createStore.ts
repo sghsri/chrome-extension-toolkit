@@ -36,6 +36,20 @@ export function createStore<T>(
     const store = {} as Store<T>;
 
     let hasInitialized = false;
+    store.initialize = async () => {
+        const data = await chrome.storage[area].get(keys);
+        const missingKeys = keys.filter(key => data[key] === undefined);
+
+        if (missingKeys.length) {
+            const defaultsToSet = missingKeys.reduce((acc, key) => {
+                acc[key] = defaults[key];
+                return acc;
+            }, {});
+
+            await chrome.storage[area].set(defaultsToSet);
+        }
+        hasInitialized = true;
+    };
 
     keys.forEach(key => {
         const get = `get${capitalize(key)}`;
@@ -58,21 +72,6 @@ export function createStore<T>(
 
     // override the generated getters and setters with the computed ones if they exist
     Object.assign(store, computed(store));
-
-    store.initialize = async () => {
-        const data = await chrome.storage[area].get(keys);
-        const missingKeys = keys.filter(key => data[key] === undefined);
-
-        if (missingKeys.length) {
-            const defaultsToSet = missingKeys.reduce((acc, key) => {
-                acc[key] = defaults[key];
-                return acc;
-            }, {});
-
-            await chrome.storage[area].set(defaultsToSet);
-        }
-        hasInitialized = true;
-    };
 
     store.onChanged = async (key, callback) => {
         if (!hasInitialized) {
