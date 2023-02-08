@@ -3,6 +3,8 @@ export default {
     testEnvironment: 'jsdom',
     testMatch: ['**/test/**/*.test.ts'],
     collectCoverageFrom: ['<rootDir>/src/**/*.ts', '!<rootDir>/src/types/**/*.ts'],
+    collectCoverage: true,
+    coverageReporters: ['text', 'lcov', 'json-summary'],
     setupFilesAfterEnv: ['./test/jest.setup.ts'],
     moduleNameMapper: {
         '^src/(.*)': '<rootDir>/src/$1',
