@@ -11,11 +11,18 @@ type Store<T = {}> = DataAccessors<Defaults<T>> & {
      */
     initialize(): Promise<void>;
     /**
-     *
-     * @param key
-     * @param callback
+     * Adds a listener that will be called whenever the value of the specified key changes.
+     * @param key the key to observe
+     * @param callback a function that will be called whenever the value of the specified key changes
+     * @returns the listener function that was added
      */
-    onChanged<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): Promise<OnChangedFunction<T[K]>>;
+    observe<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): (changes, area) => void;
+
+    /**
+     * Removes a listener that was added with onChanged.
+     * @param listener the listener function to remove
+     */
+    removeObserver(listener: (changes, area) => void): void;
 };
 
 /**
@@ -73,21 +80,22 @@ export function createStore<T>(
     // override the generated getters and setters with the computed ones if they exist
     Object.assign(store, computed(store));
 
-    store.onChanged = async (key, callback) => {
-        if (!hasInitialized) {
-            await store.initialize();
-        }
-
-        chrome.storage.onChanged.addListener((changes, areaName) => {
+    store.observe = (key, callback) => {
+        const listener = async (changes, areaName) => {
             if (areaName !== area) return;
-
             const change = changes[key as string];
 
             if (change) {
                 callback(change as DataChange<any>);
             }
-        });
-        return callback;
+        };
+
+        chrome.storage.onChanged.addListener(listener);
+        return listener;
+    };
+
+    store.removeObserver = listener => {
+        chrome.storage.onChanged.removeListener(listener);
     };
 
     return store;
