@@ -35,7 +35,7 @@ type Store<T = {}> = DataAccessors<Defaults<T>> & {
  */
 export function createStore<T>(
     defaults: Defaults<T>,
-    computed: (store: Store<T>) => Partial<DataAccessors<T>> = {} as any,
+    computed: (store: Store<T>) => Partial<DataAccessors<T>> = () => ({}),
     area: 'sync' | 'local' | 'session' | 'managed' = 'local'
 ): Store<T> {
     const keys = Object.keys(defaults) as string[];
@@ -100,24 +100,3 @@ export function createStore<T>(
 
     return store;
 }
-
-interface IUserStore {
-    name: string;
-    email: URL;
-    isPremium?: boolean;
-}
-
-const defaults: Defaults<IUserStore> = {
-    name: 'test',
-    email: new URL('https://example.com'),
-    isPremium: false,
-};
-
-const userStore = createStore(defaults, store => ({
-    getEmail: async () => {
-        const isPremium = await store.getIsPremium();
-        const url = await store.getEmail();
-        const data = '';
-        return url;
-    },
-}));
