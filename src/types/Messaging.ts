@@ -5,14 +5,23 @@ import { JSON } from './Serialization';
  * The data type is the type of the first argument of the message handler.
  * The return type of the message handler is the resolved type of the promise returned by the message sender.
  */
-export type MessageDefinition = Record<string, (data: Record<string, any> | undefined) => any>;
+export type MessageDefinition<T extends Record<string, (data: Record<string, any> | undefined) => any>> = T;
 
+/**
+ * A helper type to extract the data type of a message handler.
+ */
+export type MessageData<M, K extends keyof M> = Parameters<M[K] extends (...args: any) => any ? M[K] : never>[0];
+
+/**
+ * A helper type to extract the resolved type of a message handler.
+ */
+export type MessageResponse<M, K extends keyof M> = ReturnType<M[K] extends (...args: any) => any ? M[K] : never>;
 /**
  * The internal object representing a message sent between chrome extension contexts.
  */
-export type Message<M extends MessageDefinition> = {
-    name: keyof MessageDefinition;
-    data: Parameters<M[keyof M]>[0];
+export type Message<M> = {
+    name: keyof M;
+    data: MessageData<M, keyof M>;
     from: MessageEndpoint;
     to: MessageEndpoint;
 };
@@ -31,21 +40,21 @@ export enum MessageEndpoint {
 /**
  * An object that implements the message handlers for each of the messages in the message definition.
  */
-export type MessageHandler<M extends MessageDefinition> = {
+export type MessageHandler<M> = {
     [K in keyof M]: (context: {
         /** The data sent with the message. */
-        data: JSON<Parameters<M[K]>[0]>;
+        data: JSON<MessageData<M, K>>;
         /** The tab or page or background service worker that sent the message. */
         sender: chrome.runtime.MessageSender;
         /** A function that can be used to send a response asynchronously to the sender. */
-        sendResponse: (response: ReturnType<M[K]>) => void;
+        sendResponse: (response: MessageResponse<M, K>) => void;
     }) => Promise<void> | void;
 };
 
 /**
  * An object that can be used to handle messages coming from another extension context.
  */
-export interface IMessageListener<M extends MessageDefinition> {
+export interface IMessageListener<M> {
     /**
      * Starts listening for messages. When a message is received, the corresponding message handler is called.
      */

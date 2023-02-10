@@ -1,16 +1,16 @@
-import { MessageDefinition, MessageEndpoint, Message, JSON, AddParameters } from 'src/types';
+import { MessageEndpoint, Message, JSON, MessageData, MessageResponse } from 'src/types';
 /**
  * An object that can be used to send messages to the background script.
  */
-export type BackgroundMessenger<M extends MessageDefinition> = {
-    [K in keyof M]: (...args: Parameters<M[K]>) => Promise<JSON<ReturnType<M[K]>>>;
+export type BackgroundMessenger<M> = {
+    [K in keyof M]: (data: MessageData<M, K>) => Promise<JSON<MessageResponse<M, K>>>;
 };
 
 /**
  * an object that can be used to send messages to a tab OR extension pages (popup, options, etc.)
  */
-export type TabMessenger<M extends MessageDefinition> = {
-    [K in keyof M]: AddParameters<(...args: Parameters<M[K]>) => Promise<ReturnType<M[K]>>, [tabId: number]>;
+export type TabMessenger<M> = {
+    [K in keyof M]: (data: MessageData<M, K>, tabId: number) => Promise<JSON<MessageResponse<M, K>>>;
 };
 
 /**
@@ -18,19 +18,19 @@ export type TabMessenger<M extends MessageDefinition> = {
  * @type To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the tabs and extension pages (popup, options, etc.)
  */
-function createMessenger<M extends MessageDefinition>(type: 'tab'): TabMessenger<M>;
+function createMessenger<M>(type: 'tab'): TabMessenger<M>;
 /**
  *  A wrapper for chrome extension messaging with a type-safe API.
  * @param type To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the background script.
  */
-function createMessenger<M extends MessageDefinition>(type: 'background'): BackgroundMessenger<M>;
+function createMessenger<M>(type: 'background'): BackgroundMessenger<M>;
 /**
  *  A wrapper for chrome extension messaging with a type-safe API.
  * @param type To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the background script.
  */
-function createMessenger<M extends MessageDefinition>(type: 'background' | 'tab') {
+function createMessenger<M>(type: 'background' | 'tab') {
     let to: MessageEndpoint = MessageEndpoint.BACKGROUND;
     let from: MessageEndpoint = MessageEndpoint.VIEW;
 
@@ -51,8 +51,8 @@ function createMessenger<M extends MessageDefinition>(type: 'background' | 'tab'
 
     const sender = new Proxy({} as any, {
         get(target, prop) {
-            const name = prop as string;
-            return async (data: Parameters<M[keyof M]>[0], tabId?: number) =>
+            const name = prop as keyof M;
+            return async (data: MessageData<M, any>, tabId?: number) =>
                 new Promise((resolve, reject) => {
                     const message: Message<M> = {
                         name,
@@ -73,3 +73,10 @@ function createMessenger<M extends MessageDefinition>(type: 'background' | 'tab'
 }
 
 export default createMessenger;
+
+interface TabMessages {
+    openNewTab: (data: { url: string }) => void;
+    getTabId: (data: { url: string }) => number;
+}
+
+const tabMessenger = createMessenger<TabMessages>('background');

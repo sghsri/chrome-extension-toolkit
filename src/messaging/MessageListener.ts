@@ -1,10 +1,10 @@
 import getScriptType, { ScriptType } from 'src/getScriptType';
-import { MessageHandler, MessageDefinition, IMessageListener, MessageEndpoint, Message, JSON } from '../types';
+import { MessageHandler, IMessageListener, MessageEndpoint, Message, JSON } from '../types';
 
 /**
  * An object that can be used to listen for and handle messages coming from another extension context.
  */
-export default class MessageListener<M extends MessageDefinition> implements IMessageListener<M> {
+export class MessageListener<M> implements IMessageListener<M> {
     private handlers: MessageHandler<M>;
     private scriptType: ScriptType;
     private myEndpoint: MessageEndpoint;
@@ -46,10 +46,12 @@ export default class MessageListener<M extends MessageDefinition> implements IMe
             // this message is not for my current context, so ignore it
             return true;
         }
-        const handler = this.handlers[message.name];
+        const messageName = message.name as string;
+
+        const handler = this.handlers[messageName];
         if (!handler) {
             // this message is for my current context, but I don't have a handler for it, so ignore it
-            console.error(`No handler for message ${message.name}`, message, sender);
+            console.error(`No handler for message ${messageName}`, message, sender);
             return true;
         }
         try {
@@ -60,7 +62,7 @@ export default class MessageListener<M extends MessageDefinition> implements IMe
                 sender,
             });
         } catch (error) {
-            console.error(`Error handling message ${message.name}`, error, message, sender);
+            console.error(`Error handling message ${messageName}`, error, message, sender);
             if (this.onError) {
                 this.onError(error);
             }
