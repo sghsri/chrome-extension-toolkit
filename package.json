@@ -2,7 +2,7 @@
   "name": "chrome-extension-toolkit",
   "version": "0.0.4",
   "description": "A template for creating npm packages using TypeScript and VSCode",
-  "main": "dist/index.esm.js",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsup",
