@@ -69,7 +69,7 @@ export function createStore<T>(
             if (!hasInitialized) {
                 await store.initialize();
             }
-            return await chrome.storage[area].get(key)[key];
+            return (await chrome.storage[area].get(key))[key];
         };
 
         store[set] = async (value: T[keyof T]) => {
