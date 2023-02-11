@@ -16,12 +16,12 @@ export enum ScriptType {
  * @returns The context in which the code is running, or null if the code is not running in a chrome extension.
  */
 export default function getScriptType(): ScriptType | null {
-    if (!chrome.runtime.id) {
+    if (!chrome?.runtime?.id) {
         // we are not in a chrome extension
         return null;
     }
     const manifest = chrome.runtime.getManifest();
-    if (window === undefined) {
+    if (global.window === undefined) {
         return ScriptType.BACKGROUND_SCRIPT;
     }
 
