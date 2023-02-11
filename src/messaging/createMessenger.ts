@@ -18,19 +18,19 @@ export type TabMessenger<M> = {
  * @type To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the tabs and extension pages (popup, options, etc.)
  */
-function createMessenger<M>(type: 'tab'): TabMessenger<M>;
+export function createMessenger<M>(type: 'tab'): TabMessenger<M>;
 /**
  *  A wrapper for chrome extension messaging with a type-safe API.
  * @param type To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the background script.
  */
-function createMessenger<M>(type: 'background'): BackgroundMessenger<M>;
+export function createMessenger<M>(type: 'background'): BackgroundMessenger<M>;
 /**
  *  A wrapper for chrome extension messaging with a type-safe API.
  * @param type To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the background script.
  */
-function createMessenger<M>(type: 'background' | 'tab') {
+export function createMessenger<M>(type: 'background' | 'tab') {
     let to: MessageEndpoint = MessageEndpoint.BACKGROUND;
     let from: MessageEndpoint = MessageEndpoint.VIEW;
 
@@ -71,12 +71,3 @@ function createMessenger<M>(type: 'background' | 'tab') {
     });
     return sender;
 }
-
-export default createMessenger;
-
-interface TabMessages {
-    openNewTab: (data: { url: string }) => void;
-    getTabId: (data: { url: string }) => number;
-}
-
-const tabMessenger = createMessenger<TabMessages>('background');

@@ -5,7 +5,7 @@ import { capitalize } from 'src/utils/string';
  * A virtual wrapper around the chrome.storage API that allows you to segment and compartmentalize your data.
  * The data is all stored at the top level of the storage area, so you should namespace your keys to avoid collisions.
  */
-type Store<T = {}> = DataAccessors<Defaults<T>> & {
+export type Store<T = {}> = DataAccessors<Defaults<T>> & {
     /**
      * Initializes the store by setting any keys that are not already set to their default values. This will be called automatically when you first access a getter or setter.
      */
@@ -23,6 +23,7 @@ type Store<T = {}> = DataAccessors<Defaults<T>> & {
      * @param listener the listener function to remove
      */
     removeObserver(listener: (changes, area) => void): void;
+    area: 'sync' | 'local' | 'session' | 'managed';
 };
 
 /**
@@ -36,11 +37,13 @@ type Store<T = {}> = DataAccessors<Defaults<T>> & {
 export function createStore<T>(
     defaults: Defaults<T>,
     computed: (store: Store<T>) => Partial<DataAccessors<T>> = () => ({}),
-    area: 'sync' | 'local' | 'session' | 'managed' = 'local'
+    area: Store['area'] = 'local'
 ): Store<T> {
     const keys = Object.keys(defaults) as string[];
 
-    const store = {} as Store<T>;
+    const store = {
+        area,
+    } as Store<T>;
 
     let hasInitialized = false;
     store.initialize = async () => {
