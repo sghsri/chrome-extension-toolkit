@@ -1,4 +1,5 @@
 import { DataAccessors, Defaults, DataChange, OnChangedFunction } from 'src/types/Storage';
+import { decrypt, encrypt, MISSING_KEY_ERROR_MESSAGE } from 'src/utils/encryption';
 import { capitalize } from 'src/utils/string';
 
 /**
@@ -20,6 +21,16 @@ export type Store<T = {}, C = {}> = DataAccessors<Defaults<T>> &
          * A function that allows you to add properties to the store. This is useful if you want to add computed properties based on the store's data.
          */
         modify<C>(overrides: C): Store<T, C>;
+
+        /**
+         * Returns a promise that resolves to the entire contents of the store.
+         */
+        all(): Promise<T>;
+
+        /**
+         * Returns an array of all the keys in the store.
+         */
+        keys(): string[];
 
         /**
          * Adds a listener that will be called whenever the value of the specified key changes.
@@ -64,6 +75,10 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
     let area = options?.area || 'local';
     let isEncrypted = options?.isEncrypted || false;
 
+    if (isEncrypted && !process.env.EXTENSION_STORAGE_ENCRYPTION_KEY) {
+        throw new Error(MISSING_KEY_ERROR_MESSAGE);
+    }
+
     const store = {
         options,
     } as Store<T>;
@@ -75,7 +90,7 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
 
         if (missingKeys.length) {
             const defaultsToSet = missingKeys.reduce((acc, key) => {
-                acc[key] = defaults[key];
+                acc[key] = isEncrypted ? encrypt(defaults[key]) : defaults[key];
                 return acc;
             }, {});
 
@@ -92,26 +107,54 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
             if (!hasInitialized) {
                 await store.initialize();
             }
-            return (await chrome.storage[area].get(key))[key];
+            const value = (await chrome.storage[area].get(key))[key];
+            if (isEncrypted) {
+                return decrypt(value);
+            }
+            return value;
         };
 
         store[set] = async (value: T[keyof T]) => {
             if (!hasInitialized) {
                 await store.initialize();
             }
-            await chrome.storage[area].set({ [key]: value });
+
+            await chrome.storage[area].set({
+                [key]: isEncrypted ? encrypt(value) : value,
+            });
         };
     });
 
     store.modify = computed => Object.assign(store, computed);
 
+    store.all = async () => {
+        if (!hasInitialized) {
+            await store.initialize();
+        }
+        const fullStore = await chrome.storage[area].get(keys);
+        if (isEncrypted) {
+            return Object.keys(fullStore).reduce((acc, key) => {
+                acc[key] = decrypt(fullStore[key]);
+                return acc;
+            }, {}) as T;
+        }
+        return fullStore as T;
+    };
+
+    store.keys = () => keys;
+
     store.observe = (key, callback) => {
         const listener = async (changes, areaName) => {
             if (areaName !== area) return;
-            const change = changes[key as string];
+            const change: DataChange<any> = isEncrypted
+                ? {
+                      oldValue: decrypt(changes[key].oldValue),
+                      newValue: decrypt(changes[key].newValue),
+                  }
+                : changes[key];
 
-            if (change) {
-                callback(change as DataChange<any>);
+            if (changes) {
+                callback(change);
             }
         };
 
