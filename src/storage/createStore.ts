@@ -5,25 +5,49 @@ import { capitalize } from 'src/utils/string';
  * A virtual wrapper around the chrome.storage API that allows you to segment and compartmentalize your data.
  * The data is all stored at the top level of the storage area, so you should namespace your keys to avoid collisions.
  */
-export type Store<T = {}> = DataAccessors<Defaults<T>> & {
-    /**
-     * Initializes the store by setting any keys that are not already set to their default values. This will be called automatically when you first access a getter or setter.
-     */
-    initialize(): Promise<void>;
-    /**
-     * Adds a listener that will be called whenever the value of the specified key changes.
-     * @param key the key to observe
-     * @param callback a function that will be called whenever the value of the specified key changes
-     * @returns the listener function that was added
-     */
-    observe<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): (changes, area) => void;
+export type Store<T = {}, C = {}> = DataAccessors<Defaults<T>> &
+    C & {
+        /**
+         * The options that were passed to the createStore function
+         */
+        options: StoreOptions;
+        /**
+         * Initializes the store by setting any keys that are not already set to their default values. This will be called automatically when you first access a getter or setter.
+         */
+        initialize(): Promise<void>;
 
+        /**
+         * A function that allows you to add properties to the store. This is useful if you want to add computed properties based on the store's data.
+         */
+        modify<C>(overrides: C): Store<T, C>;
+
+        /**
+         * Adds a listener that will be called whenever the value of the specified key changes.
+         * @param key the key to observe
+         * @param callback a function that will be called whenever the value of the specified key changes
+         * @returns the listener function that was added
+         */
+        observe<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): (changes, area) => void;
+
+        /**
+         * Removes a listener that was added with onChanged.
+         * @param listener the listener function to remove
+         */
+        removeObserver(listener: (changes, area) => void): void;
+    };
+
+/**
+ * Options that modify the behavior of the store
+ */
+type StoreOptions = {
     /**
-     * Removes a listener that was added with onChanged.
-     * @param listener the listener function to remove
+     * Which chrome.storage area to use. Defaults to 'local'
      */
-    removeObserver(listener: (changes, area) => void): void;
-    area: 'sync' | 'local' | 'session' | 'managed';
+    area?: 'sync' | 'local' | 'session' | 'managed';
+    /**
+     * Whether or not to encrypt the data before storing it, and decrypt it when retrieving it. Defaults to false.
+     */
+    isEncrypted?: boolean;
 };
 
 /**
@@ -34,15 +58,14 @@ export type Store<T = {}> = DataAccessors<Defaults<T>> & {
  * @param area the storage area to use. Defaults to 'local'
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createStore<T>(
-    defaults: Defaults<T>,
-    computed: (store: Store<T>) => Partial<DataAccessors<T>> = () => ({}),
-    area: Store['area'] = 'local'
-): Store<T> {
+export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): Store<T> {
     const keys = Object.keys(defaults) as string[];
 
+    let area = options?.area || 'local';
+    let isEncrypted = options?.isEncrypted || false;
+
     const store = {
-        area,
+        options,
     } as Store<T>;
 
     let hasInitialized = false;
@@ -80,8 +103,7 @@ export function createStore<T>(
         };
     });
 
-    // override the generated getters and setters with the computed ones if they exist
-    Object.assign(store, computed(store));
+    store.modify = computed => Object.assign(store, computed);
 
     store.observe = (key, callback) => {
         const listener = async (changes, areaName) => {
