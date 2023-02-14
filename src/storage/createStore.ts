@@ -92,9 +92,11 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
 
         if (missingKeys.length) {
             const defaultsToSet = {};
-            missingKeys.forEach(async key => {
+
+            for (const key of missingKeys) {
+                // eslint-disable-next-line no-await-in-loop
                 defaultsToSet[key] = isEncrypted ? await security.encrypt(defaults[key]) : defaults[key];
-            });
+            }
 
             await chrome.storage[area].set(defaultsToSet);
         }
