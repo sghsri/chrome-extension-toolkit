@@ -3,7 +3,7 @@ declare global {
         interface ProcessEnv {
             NODE_ENV: 'development' | 'production' | 'test';
             CI?: string;
-            EXTENSION_STORAGE_ENCRYPTION_KEY?: string;
+            EXTENSION_STORAGE_PASSWORD?: string;
         }
     }
 

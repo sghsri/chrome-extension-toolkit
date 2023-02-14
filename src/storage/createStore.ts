@@ -1,5 +1,5 @@
 import { DataAccessors, Defaults, DataChange, OnChangedFunction } from 'src/types/Storage';
-import { decrypt, encrypt, MISSING_KEY_ERROR_MESSAGE } from 'src/utils/encryption';
+import Security from 'src/utils/encryption';
 import { capitalize } from 'src/utils/string';
 
 /**
@@ -61,6 +61,8 @@ type StoreOptions = {
     isEncrypted?: boolean;
 };
 
+const security = new Security();
+
 /**
  * A function that creates a virtual Store within the chrome.storage API.
  *
@@ -75,8 +77,8 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
     let area = options?.area || 'local';
     let isEncrypted = options?.isEncrypted || false;
 
-    if (isEncrypted && !process.env.EXTENSION_STORAGE_ENCRYPTION_KEY) {
-        throw new Error(MISSING_KEY_ERROR_MESSAGE);
+    if (isEncrypted && !process.env.EXTENSION_STORAGE_PASSWORD) {
+        throw new Error(Security.MISSING_PASSWORD_ERROR_MESSAGE);
     }
 
     const store = {
@@ -90,7 +92,7 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
 
         if (missingKeys.length) {
             const defaultsToSet = missingKeys.reduce((acc, key) => {
-                acc[key] = isEncrypted ? encrypt(defaults[key]) : defaults[key];
+                acc[key] = isEncrypted ? security.encrypt(defaults[key]) : defaults[key];
                 return acc;
             }, {});
 
@@ -109,7 +111,7 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
             }
             const value = (await chrome.storage[area].get(key))[key];
             if (isEncrypted) {
-                return decrypt(value);
+                return security.decrypt(value);
             }
             return value;
         };
@@ -120,7 +122,7 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
             }
 
             await chrome.storage[area].set({
-                [key]: isEncrypted ? encrypt(value) : value,
+                [key]: isEncrypted ? security.encrypt(value) : value,
             });
         };
     });
@@ -134,7 +136,7 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
         const fullStore = await chrome.storage[area].get(keys);
         if (isEncrypted) {
             return Object.keys(fullStore).reduce((acc, key) => {
-                acc[key] = decrypt(fullStore[key]);
+                acc[key] = security.decrypt(fullStore[key]);
                 return acc;
             }, {}) as T;
         }
@@ -148,8 +150,8 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
             if (areaName !== area) return;
             const change: DataChange<any> = isEncrypted
                 ? {
-                      oldValue: decrypt(changes[key].oldValue),
-                      newValue: decrypt(changes[key].newValue),
+                      oldValue: security.decrypt(changes[key].oldValue),
+                      newValue: security.decrypt(changes[key].newValue),
                   }
                 : changes[key];
 
