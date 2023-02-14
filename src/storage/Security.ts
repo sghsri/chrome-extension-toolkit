@@ -16,7 +16,7 @@ const CIPHER_SIZE = 256;
 /**
  * A class that provides encryption and decryption methods for use when storing data in the Stores provided by this library.
  */
-export default class Security {
+export class Security {
     private encoder = new TextEncoder();
     private decoder = new TextDecoder();
 

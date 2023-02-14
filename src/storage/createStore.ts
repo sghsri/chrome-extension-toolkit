@@ -1,5 +1,5 @@
 import { DataAccessors, Defaults, DataChange, OnChangedFunction } from 'src/types/Storage';
-import Security from 'src/utils/encryption';
+import { Security } from 'src/storage/Security';
 import { capitalize } from 'src/utils/string';
 
 /**
