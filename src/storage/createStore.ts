@@ -9,6 +9,10 @@ import { capitalize } from 'src/utils/string';
 export type Store<T = {}, C = {}> = DataAccessors<Defaults<T>> &
     C & {
         /**
+         * A unique identifier for the store. This is for debugging purposes only.
+         */
+        id: string;
+        /**
          * The options that were passed to the createStore function
          */
         options: StoreOptions;
@@ -63,15 +67,18 @@ type StoreOptions = {
 
 const security = new Security();
 
+export const KEY_TO_STORE_MAP = new Map<string, string>();
+
 /**
  * A function that creates a virtual Store within the chrome.storage API.
  *
+ * @param id the id of the store. this is for debugging purposes only.
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
  * @param computed an optional function that allows you to override the generated getters and setters with your own. Provides a reference to the store itself so you can access this store's getters and setters.
  * @param area the storage area to use. Defaults to 'local'
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): Store<T> {
+export function createStore<T>(id: string, defaults: Defaults<T>, options?: StoreOptions): Store<T> {
     const keys = Object.keys(defaults) as string[];
 
     let area = options?.area || 'local';
@@ -84,6 +91,11 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
     const store = {
         options,
     } as Store<T>;
+
+    if (process.env.NODE_ENV === 'development') {
+        // for development builds, we will attach the store to the globalThis object so that it can be accessed from the console
+        globalThis[id] = store;
+    }
 
     let hasInitialized = false;
     store.initialize = async () => {
@@ -104,9 +116,11 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
     };
 
     keys.forEach(key => {
+        if (process.env.NODE_ENV === 'development') {
+            KEY_TO_STORE_MAP.set(key, id);
+        }
         const get = `get${capitalize(key)}`;
         const set = `set${capitalize(key)}`;
-
         store[get] = async () => {
             if (!hasInitialized) {
                 await store.initialize();
