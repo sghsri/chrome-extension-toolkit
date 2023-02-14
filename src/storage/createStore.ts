@@ -91,10 +91,10 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
         const missingKeys = keys.filter(key => data[key] === undefined);
 
         if (missingKeys.length) {
-            const defaultsToSet = missingKeys.reduce((acc, key) => {
-                acc[key] = isEncrypted ? security.encrypt(defaults[key]) : defaults[key];
-                return acc;
-            }, {});
+            const defaultsToSet = {};
+            missingKeys.forEach(async key => {
+                defaultsToSet[key] = isEncrypted ? await security.encrypt(defaults[key]) : defaults[key];
+            });
 
             await chrome.storage[area].set(defaultsToSet);
         }
@@ -110,10 +110,7 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
                 await store.initialize();
             }
             const value = (await chrome.storage[area].get(key))[key];
-            if (isEncrypted) {
-                return security.decrypt(value);
-            }
-            return value;
+            return isEncrypted ? await security.decrypt(value) : value;
         };
 
         store[set] = async (value: T[keyof T]) => {
@@ -122,7 +119,7 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
             }
 
             await chrome.storage[area].set({
-                [key]: isEncrypted ? security.encrypt(value) : value,
+                [key]: isEncrypted ? await security.encrypt(value) : value,
             });
         };
     });
@@ -135,10 +132,9 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
         }
         const fullStore = await chrome.storage[area].get(keys);
         if (isEncrypted) {
-            return Object.keys(fullStore).reduce((acc, key) => {
-                acc[key] = security.decrypt(fullStore[key]);
-                return acc;
-            }, {}) as T;
+            Object.keys(fullStore).forEach(async key => {
+                fullStore[key] = await security.decrypt(fullStore[key]);
+            });
         }
         return fullStore as T;
     };
@@ -148,16 +144,25 @@ export function createStore<T>(defaults: Defaults<T>, options?: StoreOptions): S
     store.observe = (key, callback) => {
         const listener = async (changes, areaName) => {
             if (areaName !== area) return;
-            const change: DataChange<any> = isEncrypted
-                ? {
-                      oldValue: security.decrypt(changes[key].oldValue),
-                      newValue: security.decrypt(changes[key].newValue),
-                  }
-                : changes[key];
+            if (!(key in changes)) return;
 
-            if (changes) {
-                callback(change);
+            if (!isEncrypted) {
+                callback({
+                    oldValue: changes[key].oldValue,
+                    newValue: changes[key].newValue,
+                });
+                return;
             }
+
+            const [oldValue, newValue] = await Promise.all([
+                security.decrypt(changes[key].oldValue),
+                security.decrypt(changes[key].newValue),
+            ]);
+
+            callback({
+                oldValue,
+                newValue,
+            });
         };
 
         chrome.storage.onChanged.addListener(listener);

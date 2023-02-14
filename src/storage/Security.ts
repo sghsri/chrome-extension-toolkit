@@ -116,7 +116,7 @@ export class Security {
         );
 
         // parse the decrypted data into a JSON object and return it
-        return JSON.parse(this.decoder.decode(decryptedDataBuffer));
+        return decryptedDataBuffer.byteLength === 0 ? undefined : JSON.parse(this.decoder.decode(decryptedDataBuffer));
     }
 
     /**
