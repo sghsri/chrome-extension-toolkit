@@ -148,9 +148,11 @@ export function createStore<T>(id: string, defaults: Defaults<T>, options?: Stor
         }
         const fullStore = await chrome.storage[area].get(keys);
         if (isEncrypted) {
-            Object.keys(fullStore).forEach(async key => {
+            // eslint-disable-next-line guard-for-in, no-restricted-syntax
+            for (const key in fullStore) {
+                // eslint-disable-next-line no-await-in-loop
                 fullStore[key] = await security.decrypt(fullStore[key]);
-            });
+            }
         }
         return fullStore as T;
     };
