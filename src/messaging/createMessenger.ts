@@ -3,14 +3,18 @@ import { MessageEndpoint, Message, JSON, MessageData, MessageResponse } from 'sr
  * An object that can be used to send messages to the background script.
  */
 export type BackgroundMessenger<M> = {
-    [K in keyof M]: (data: MessageData<M, K>) => Promise<JSON<MessageResponse<M, K>>>;
+    [K in keyof M]: MessageData<M, K> extends undefined
+        ? () => Promise<JSON<MessageResponse<M, K>>>
+        : (data: MessageData<M, K>) => Promise<JSON<MessageResponse<M, K>>>;
 };
 
 /**
  * an object that can be used to send messages to a tab OR extension pages (popup, options, etc.)
  */
 export type TabMessenger<M> = {
-    [K in keyof M]: (data: MessageData<M, K>, tabId: number) => Promise<JSON<MessageResponse<M, K>>>;
+    [K in keyof M]: MessageData<M, K> extends undefined
+        ? (tab: number | 'ALL') => Promise<JSON<MessageResponse<M, K>>>
+        : (data: MessageData<M, K>, tab: number | 'ALL') => Promise<JSON<MessageResponse<M, K>>>;
 };
 
 /**
@@ -18,23 +22,23 @@ export type TabMessenger<M> = {
  * @type To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the tabs and extension pages (popup, options, etc.)
  */
-export function createMessenger<M>(type: 'tab'): TabMessenger<M>;
+export function createMessenger<M>(destination: 'tab'): TabMessenger<M>;
 /**
  *  A wrapper for chrome extension messaging with a type-safe API.
  * @param type To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the background script.
  */
-export function createMessenger<M>(type: 'background'): BackgroundMessenger<M>;
+export function createMessenger<M>(destination: 'background'): BackgroundMessenger<M>;
 /**
  *  A wrapper for chrome extension messaging with a type-safe API.
- * @param type To which context the messages are sent.
+ * @param destination To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the background script.
  */
-export function createMessenger<M>(type: 'background' | 'tab') {
+export function createMessenger<M>(destination: 'background' | 'tab') {
     let to: MessageEndpoint = MessageEndpoint.BACKGROUND;
     let from: MessageEndpoint = MessageEndpoint.VIEW;
 
-    if (type === 'tab') {
+    if (destination === 'tab') {
         to = MessageEndpoint.VIEW;
         from = MessageEndpoint.BACKGROUND;
     }
@@ -49,10 +53,31 @@ export function createMessenger<M>(type: 'background' | 'tab') {
         };
     }
 
+    async function sendTabMessageToAllTabs(message: Message<M>) {
+        const tabs = (await chrome.tabs.query({})).filter(tab => tab.id !== undefined && tab.url);
+        const promises: Promise<void>[] = [];
+        tabs.forEach(tab =>
+            promises.push(
+                new Promise((resolve, reject) => {
+                    chrome.tabs.sendMessage(tab.id!, message, onMessageResponse(resolve, reject));
+                })
+            )
+        );
+
+        // and also send it using chrome.runtime.sendMessage for the extension popup or any extension page
+        promises.push(
+            new Promise((resolve, reject) => {
+                chrome.runtime.sendMessage(message, onMessageResponse(resolve, reject));
+            })
+        );
+
+        return Promise.all(promises);
+    }
+
     const sender = new Proxy({} as any, {
         get(target, prop) {
             const name = prop as keyof M;
-            return async (data: MessageData<M, any>, tabId?: number) =>
+            return async (data: MessageData<M, any>, dest?: number | 'ALL') =>
                 new Promise((resolve, reject) => {
                     const message: Message<M> = {
                         name,
@@ -61,11 +86,16 @@ export function createMessenger<M>(type: 'background' | 'tab') {
                         to,
                     };
 
-                    if (to === MessageEndpoint.VIEW && tabId) {
-                        // for messages sent to the views, we want to send to the tabs using chrome.tabs.sendMessage, and also send it using chrome.runtime.sendMessage for the extension popup or any extension page
-                        chrome.tabs.sendMessage(tabId, message, onMessageResponse(resolve, reject));
+                    if (to === MessageEndpoint.VIEW && dest) {
+                        // for messages sent to the tabs, we want to send to the tabs using chrome.tabs.sendMessage,
+                        if (typeof dest === 'number') {
+                            return chrome.tabs.sendMessage(dest, message, onMessageResponse(resolve, reject));
+                        }
+                        if (dest === 'ALL') {
+                            return sendTabMessageToAllTabs(message);
+                        }
                     }
-                    chrome.runtime.sendMessage(message, onMessageResponse(resolve, reject));
+                    return chrome.runtime.sendMessage(message, onMessageResponse(resolve, reject));
                 });
         },
     });
