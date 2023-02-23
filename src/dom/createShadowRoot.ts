@@ -1,7 +1,7 @@
 /**
  * An extension of HTMLDivElement that represents a shadow root for use within an Extension Content Script.
  */
-interface ExtShadowDom extends HTMLDivElement {
+interface ExtShadowDOM extends HTMLDivElement {
     shadowRoot: ShadowRoot;
     /**
      * Adds a style sheet to the shadow root.
@@ -18,12 +18,12 @@ interface ExtShadowDom extends HTMLDivElement {
  * @param options the optional options for the shadow root.
  * @returns A Div that represents the shadow root with some additional methods added to it.
  */
-export function createShadowDOM(id: string, options?: ShadowRootInit): ExtShadowDom {
+export function createShadowDOM(id: string, options?: ShadowRootInit): ExtShadowDOM {
     const html = document.querySelector('html');
     if (!html) {
         throw new Error('Could not find html element');
     }
-    const div = document.createElement('div') as ExtShadowDom;
+    const div = document.createElement('div') as ExtShadowDOM;
     div.id = id;
     div.style.all = 'initial';
     div.attachShadow({
@@ -40,5 +40,5 @@ export function createShadowDOM(id: string, options?: ShadowRootInit): ExtShadow
     };
 
     html.appendChild(div);
-    return div as ExtShadowDom;
+    return div as ExtShadowDOM;
 }
