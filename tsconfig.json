@@ -39,7 +39,6 @@
     "test/**/*.ts",
     "jest.config.ts",
     "package.json",
-    "src/context/onContextInvalidated.ts"
   ],
   "exclude": [
     "node_modules",
