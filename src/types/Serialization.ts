@@ -1,53 +1,93 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
-/**
- * A type that represents a primitive value. Each of these is a valid JSON value and can be serialized.
- */
-export type Primitive = string | number | boolean | null | undefined | void;
-
-/**
- * A type that represents the keys of an object that are primitive values.
- */
-type PrimitiveKeys<T> = {
+type DataPropertyNames<T> = {
+    // eslint-disable-next-line @typescript-eslint/ban-types
     [K in keyof T]: T[K] extends Function | symbol ? never : K;
 }[keyof T];
 
-/**
- * This type represents the serialized version of a value.
- *
- * Because of the nature of the chrome.runtime.sendMessage and chrome.storage APIs,
- * all the values that go through them will be serialized and deserialized, thus losing any function or symbol properties.
- *
- * @example Serialized<{
- * openNewTab: (url: string) => void,
- * count: number,
- * url: URL,
- * }> = { count: number, url: JSON<URL> }
- * @example
- */
-export type Serialized<T> = {
-    [K in PrimitiveKeys<T>]: T[K] extends undefined & infer U
-        ? undefined & Serialized<U>
-        : T[K] extends Primitive
-        ? T[K]
-        : T[K] extends Array<infer U>
-        ? Serialized<U>[]
-        : T[K] extends object
-        ? T[K] extends Date
-            ? string
-            : T[K] extends RegExp | Error
-            ? {}
-            : Serialized<T[K]>
-        : T[K];
-};
+// a string union type of all keys that do not have optional values in T
+type RequiredPropertyNames<T> = {
+    [K in keyof T]-?: {} extends { [P in K]: T[K] } ? never : K;
+}[keyof T];
+
+// a string union type of all keys that have optional values in T
+type OptionalPropertyNames<T> = {
+    [K in keyof T]-?: {} extends { [P in K]: T[K] } ? K : never;
+}[keyof T];
 
 /**
- * A type that represents a value that can be serialized, but doesn't have to be if its a primitive value.
- * @example JSON<string> = string
- * @example JSON<{ foo: string }> = { foo: string }
+ *
  */
-export type JSON<T> = T extends Primitive ? T : T extends Date ? string : T extends RegExp | Error ? {} : Serialized<T>;
+export type Serialized<T> = {
+    [P in DataPropertyNames<T> & RequiredPropertyNames<T>]: T[P] extends object ? JSON<T[P]> : T[P];
+} & {
+    [P in OptionalPropertyNames<T>]?: T[P] extends object | undefined ? JSON<T[P]> : T[P];
+};
+
+// eslint-disable-next-line @typescript-eslint/ban-types
+/**
+ *
+ */
+export type Serializable<T> = T extends number[]
+    ? number[]
+    : T extends boolean[]
+    ? boolean[]
+    : T extends string[]
+    ? string[]
+    : T extends undefined[]
+    ? undefined[]
+    : T extends void[]
+    ? void[]
+    : T extends null[]
+    ? null[]
+    : T extends any[]
+    ? Serialized<T[number]>[]
+    : Serialized<T>;
+
+/**
+ *
+ */
+export type JSON<T> = T extends string
+    ? string
+    : T extends number
+    ? number
+    : T extends boolean
+    ? boolean
+    : T extends undefined
+    ? undefined
+    : T extends void
+    ? void
+    : T extends null
+    ? null
+    : Serializable<T>;
 
 export function serialize<T>(value: T): JSON<T> {
     return JSON.parse(JSON.stringify(value)) as JSON<T>;
 }
+
+// THIS IS FOR TESTING THE TYPING
+
+// type Test2 = {
+//     test: string;
+//     openNewTab: (url: string) => void;
+//     url?: URL;
+// };
+
+// type Test1 = {
+//     openNewTab: (url: string) => void;
+//     count: number;
+//     url: URL;
+//     urls?: URL[];
+//     foo: Test2;
+//     bar?: Test2;
+// };
+
+// let y: Test1['openNewTab'] extends object | undefined ? true : false;
+
+// let x: Serialized<Test1>;
+// //  ^?
+
+// x = {
+//     urls: [],
+//     foo: {
+//         test: 'test',
+//     },
+// };
