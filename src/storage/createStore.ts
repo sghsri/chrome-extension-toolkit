@@ -56,10 +56,6 @@ export type Store<T = {}, C = {}> = DataAccessors<Defaults<T>> &
  */
 type StoreOptions = {
     /**
-     * Which chrome.storage area to use. Defaults to 'local'
-     */
-    area?: 'sync' | 'local' | 'session' | 'managed';
-    /**
      * Whether or not to encrypt the data before storing it, and decrypt it when retrieving it. Defaults to false.
      */
     isEncrypted?: boolean;
@@ -78,10 +74,13 @@ export const KEY_TO_STORE_MAP = new Map<string, string>();
  * @param area the storage area to use. Defaults to 'local'
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createStore<T>(id: string, defaults: Defaults<T>, options?: StoreOptions): Store<T> {
+function createStore<T>(
+    id: string,
+    defaults: Defaults<T>,
+    area: 'sync' | 'local' | 'session' | 'managed',
+    options?: StoreOptions
+): Store<T> {
     const keys = Object.keys(defaults) as string[];
-
-    let area = options?.area || 'local';
     let isEncrypted = options?.isEncrypted || false;
 
     if (isEncrypted && !process.env.EXTENSION_STORAGE_PASSWORD) {
@@ -192,4 +191,60 @@ export function createStore<T>(id: string, defaults: Defaults<T>, options?: Stor
     };
 
     return store;
+}
+
+/**
+ * A function that creates a virtual Store within the chrome.storage.local API.
+ * This store will persist across browser sessions and be stored on the user's computer.
+ *
+ * @param id the id of the store. this is for debugging purposes only.
+ * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
+ * @param computed an optional function that allows you to override the generated getters and setters with your own. Provides a reference to the store itself so you can access this store's getters and setters.
+ * @param area the storage area to use. Defaults to 'local'
+ * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
+ */
+export function createLocalStore<T>(id: string, defaults: Defaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(id, defaults, 'local', options);
+}
+
+/**
+ * A function that creates a virtual Store within the chrome.storage.sync API.
+ * This store will persist across browser sessions and be stored on the user's Google account (if they are logged in).
+ * This means that the data will be synced across all of the user's devices.
+ *
+ * @param id the id of the store. this is for debugging purposes only.
+ * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
+ * @param options options that modify the behavior of the store
+ * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
+ */
+export function createSyncStore<T>(id: string, defaults: Defaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(id, defaults, 'sync', options);
+}
+
+/**
+ * A function that creates a virtual Store within the chrome.storage.managed API.
+ * This store will persist across browser sessions and managed by the administrator of the user's computer.
+ *
+ * @param id the id of the store. this is for debugging purposes only.
+ * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
+ * @param options options that modify the behavior of the store
+ * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
+ * @see https://developer.chrome.com/docs/extensions/reference/storage/#type-ManagedStorageArea
+ *
+ */
+export function createManagedStore<T>(id: string, defaults: Defaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(id, defaults, 'managed', options);
+}
+
+/**
+ * A function that creates a virtual Store within the chrome.storage.session API.
+ * This store will NOT persist across browser sessions and will be stored in memory. This will reset when the browser is closed.
+ *
+ * @param id the id of the store. this is for debugging purposes only.
+ * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
+ * @param options options that modify the behavior of the store
+ * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
+ */
+export function createSessionStore<T>(id: string, defaults: Defaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(id, defaults, 'session', options);
 }
