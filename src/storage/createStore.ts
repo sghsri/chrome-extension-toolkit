@@ -1,7 +1,31 @@
-import { DataAccessors, StoreDefaults, OnChangedFunction } from 'src/types/Storage';
+import { DataAccessors } from 'src/types/Storage';
 import { Security } from 'src/storage/Security';
 import { capitalize } from 'src/utils/string';
-import { debugStore } from './debugStore';
+import { JSON } from '..';
+
+/** A utility type that forces you to declare all the values specified in the type interface for a module. */
+export type StoreDefaults<T> = {
+    [P in keyof Required<T>]: Pick<T, P> extends Required<Pick<T, P>> ? T[P] : T[P] | undefined;
+};
+
+/**
+ * Represents a change in data within the store.
+ */
+export type DataChange<T> = {
+    /**
+     * The old value of the data. This will be undefined if the data was just initialized.
+     */
+    oldValue?: JSON<T>;
+    /**
+     * The new value of the data.
+     */
+    newValue: JSON<T>;
+};
+
+/**
+ * A function that is called when the data in the store changes.
+ */
+export type OnChangedFunction<T> = (changes: DataChange<T>) => void;
 
 /**
  * A virtual wrapper around the chrome.storage API that allows you to segment and compartmentalize your data.
@@ -250,30 +274,30 @@ export function createSessionStore<T, C>(
     return createStore(defaults, 'session', computed, options);
 }
 
-interface ITestStore {
-    test: string;
-    hello: number;
-}
+// interface ITestStore {
+//     test: string;
+//     hello: number;
+// }
 
-interface Actions {
-    dumbTest: () => Promise<string>;
-    getHello: () => Promise<string>;
-}
+// interface Actions {
+//     dumbTest: () => Promise<string>;
+//     getHello: () => Promise<string>;
+// }
 
-const TestStore = createLocalStore<ITestStore, Actions>(
-    {
-        hello: 1,
-        test: 'hello',
-    },
-    store => ({
-        async dumbTest() {
-            const value = await store.getTest();
-            return value;
-        },
-        async getHello() {
-            return `${await store.getHello()}`;
-        },
-    })
-);
+// const TestStore = createLocalStore<ITestStore, Actions>(
+//     {
+//         hello: 1,
+//         test: 'hello',
+//     },
+//     store => ({
+//         async dumbTest() {
+//             const value = await store.getTest();
+//             return value;
+//         },
+//         async getHello() {
+//             return `${await store.getHello()}`;
+//         },
+//     })
+// );
 
-debugStore({ TestStore });
+// debugStore({ TestStore });

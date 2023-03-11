@@ -1,10 +1,5 @@
 import { JSON } from './Serialization';
 
-/** A utility type that forces you to declare all the values specified in the type interface for a module. */
-export type StoreDefaults<T> = {
-    [P in keyof Required<T>]: Pick<T, P> extends Required<Pick<T, P>> ? T[P] : T[P] | undefined;
-};
-
 /**
  * A wrapper type that allows you to create a getter key
  */
@@ -25,21 +20,4 @@ export type DataAccessors<T> = keyof T extends string
       }
     : never;
 
-/**
- * Represents a change in data within the store.
- */
-export type DataChange<T> = {
-    /**
-     * The old value of the data. This will be undefined if the data was just initialized.
-     */
-    oldValue?: JSON<T>;
-    /**
-     * The new value of the data.
-     */
-    newValue: JSON<T>;
-};
 
-/**
- * A function that is called when the data in the store changes.
- */
-export type OnChangedFunction<T> = (changes: DataChange<T>) => void;
