@@ -1,7 +1,7 @@
 import { JSON } from './Serialization';
 
-/** A utility type that forces you to declare all the values specified in the type interface for a module. When we move to Typescript 4.9 we can remove this! and rearchitect */
-export type Defaults<T> = {
+/** A utility type that forces you to declare all the values specified in the type interface for a module. */
+export type StoreDefaults<T> = {
     [P in keyof Required<T>]: Pick<T, P> extends Required<Pick<T, P>> ? T[P] : T[P] | undefined;
 };
 
