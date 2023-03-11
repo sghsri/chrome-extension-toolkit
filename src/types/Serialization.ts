@@ -1,31 +1,15 @@
 type DataPropertyNames<T> = {
-    // eslint-disable-next-line @typescript-eslint/ban-types
     [K in keyof T]: T[K] extends Function | symbol ? never : K;
 }[keyof T];
 
-// a string union type of all keys that do not have optional values in T
-type RequiredPropertyNames<T> = {
-    [K in keyof T]-?: {} extends { [P in K]: T[K] } ? never : K;
-}[keyof T];
-
-// a string union type of all keys that have optional values in T
-type OptionalPropertyNames<T> = {
-    [K in keyof T]-?: {} extends { [P in K]: T[K] } ? K : never;
-}[keyof T];
-
-/**
- *
- */
 export type Serialized<T> = {
-    [P in DataPropertyNames<T> & RequiredPropertyNames<T>]: T[P] extends object ? JSON<T[P]> : T[P];
-} & {
-    [P in OptionalPropertyNames<T>]?: T[P] extends object | undefined ? JSON<T[P]> : T[P];
+    [P in DataPropertyNames<T>]: T[P] extends undefined
+        ? undefined | T[P]
+        : T[P] extends object
+        ? Serializable<T[P]>
+        : T[P];
 };
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-/**
- *
- */
 export type Serializable<T> = T extends number[]
     ? number[]
     : T extends boolean[]
@@ -42,9 +26,6 @@ export type Serializable<T> = T extends number[]
     ? Serialized<T[number]>[]
     : Serialized<T>;
 
-/**
- *
- */
 export type JSON<T> = T extends string
     ? string
     : T extends number
@@ -84,10 +65,3 @@ export function serialize<T>(value: T): JSON<T> {
 
 // let x: Serialized<Test1>;
 // //  ^?
-
-// x = {
-//     urls: [],
-//     foo: {
-//         test: 'test',
-//     },
-// };
