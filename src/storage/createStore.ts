@@ -1,6 +1,7 @@
 import { DataAccessors, StoreDefaults, OnChangedFunction } from 'src/types/Storage';
 import { Security } from 'src/storage/Security';
 import { capitalize } from 'src/utils/string';
+import { debugStore } from './debugStore';
 
 /**
  * A virtual wrapper around the chrome.storage API that allows you to segment and compartmentalize your data.
@@ -249,28 +250,30 @@ export function createSessionStore<T, C>(
     return createStore(defaults, 'session', computed, options);
 }
 
-// interface ITestStore {
-//     test: string;
-//     hello: number;
-// }
+interface ITestStore {
+    test: string;
+    hello: number;
+}
 
-// interface Actions {
-//     dumbTest: () => Promise<string>;
-//     getHello: () => Promise<string>;
-// }
+interface Actions {
+    dumbTest: () => Promise<string>;
+    getHello: () => Promise<string>;
+}
 
-// const TestStore = createLocalStore<ITestStore, Actions>(
-//     {
-//         hello: 1,
-//         test: 'hello',
-//     },
-//     store => ({
-//         async dumbTest() {
-//             const value = await store.getTest();
-//             return value;
-//         },
-//         async getHello() {
-//             return `${await store.getHello()}`;
-//         },
-//     })
-// );
+const TestStore = createLocalStore<ITestStore, Actions>(
+    {
+        hello: 1,
+        test: 'hello',
+    },
+    store => ({
+        async dumbTest() {
+            const value = await store.getTest();
+            return value;
+        },
+        async getHello() {
+            return `${await store.getHello()}`;
+        },
+    })
+);
+
+debugStore({ TestStore });
