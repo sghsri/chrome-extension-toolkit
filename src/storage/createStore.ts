@@ -250,7 +250,7 @@ export function createSyncStore<T, C = {}>(
  * @see https://developer.chrome.com/docs/extensions/reference/storage/#type-ManagedStorageArea
  *
  */
-export function createManagedStore<T, C>(
+export function createManagedStore<T, C = {}>(
     defaults: StoreDefaults<T>,
     computed?: (store: Store<T, C>) => C,
     options?: StoreOptions
@@ -266,7 +266,7 @@ export function createManagedStore<T, C>(
  * @param options options that modify the behavior of the store
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createSessionStore<T, C>(
+export function createSessionStore<T, C = {}>(
     defaults: StoreDefaults<T>,
     computed?: (store: Store<T, C>) => C,
     options?: StoreOptions
