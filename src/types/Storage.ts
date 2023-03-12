@@ -14,7 +14,7 @@ export type SET<T extends string> = `set${Capitalize<T>}`;
  */
 export type DataAccessors<T> = keyof T extends string
     ? {
-          [K in keyof T as SET<K>]: (value: T[K]) => Promise<void>;
+          [K in keyof T as SET<K>]: (value: Serializable<T[K]>) => Promise<void>;
       } & {
           [K in keyof T as GET<K>]: () => Promise<Serializable<T[K]>>;
       }
