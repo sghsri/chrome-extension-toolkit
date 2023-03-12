@@ -1,4 +1,4 @@
-import { JSON } from './Serialization';
+import { Serializable } from './Serialization';
 
 /**
  * MessageDefinition is a record of message names and their data types.
@@ -43,7 +43,7 @@ export enum MessageEndpoint {
 export type MessageHandler<M> = {
     [K in keyof M]: (context: {
         /** The data sent with the message. */
-        data: JSON<MessageData<M, K>>;
+        data: Serializable<MessageData<M, K>>;
         /** The tab or page or background service worker that sent the message. */
         sender: chrome.runtime.MessageSender;
         /** A function that can be used to send a response asynchronously to the sender. */

@@ -1,7 +1,7 @@
 import { DataAccessors } from 'src/types/Storage';
 import { Security } from 'src/storage/Security';
 import { capitalize } from 'src/utils/string';
-import { JSON } from '..';
+import { Serializable } from '..';
 
 /** A utility type that forces you to declare all the values specified in the type interface for a module. */
 export type StoreDefaults<T> = {
@@ -15,11 +15,11 @@ export type DataChange<T> = {
     /**
      * The old value of the data. This will be undefined if the data was just initialized.
      */
-    oldValue?: JSON<T>;
+    oldValue?: Serializable<T>;
     /**
      * The new value of the data.
      */
-    newValue: JSON<T>;
+    newValue: Serializable<T>;
 };
 
 /**

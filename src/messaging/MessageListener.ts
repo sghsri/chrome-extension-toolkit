@@ -1,5 +1,5 @@
 import getScriptType, { ScriptType } from 'src/getScriptType';
-import { MessageHandler, IMessageListener, MessageEndpoint, Message, JSON } from '../types';
+import { MessageHandler, IMessageListener, MessageEndpoint, Message, Serializable } from '../types';
 
 /**
  * An object that can be used to listen for and handle messages coming from another extension context.
@@ -57,7 +57,7 @@ export class MessageListener<M> implements IMessageListener<M> {
         try {
             // this message is for my current context, and I have a handler for it, so handle it
             handler({
-                data: message.data as JSON<typeof message.data>,
+                data: message.data as Serializable<typeof message.data>,
                 sendResponse,
                 sender,
             });

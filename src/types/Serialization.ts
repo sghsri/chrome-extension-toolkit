@@ -1,47 +1,30 @@
-type DataPropertyNames<T> = {
-    [K in keyof T]: T[K] extends Function | symbol ? never : K;
-}[keyof T];
+type Primitive = string | number | boolean | null | undefined;
 
-export type Serialized<T> = {
-    [P in DataPropertyNames<T>]: T[P] extends undefined
-        ? undefined | T[P]
-        : T[P] extends object
-        ? Serializable<T[P]>
-        : T[P];
+/**
+ * A type that represents a serialized object. This is a recursive type that will serialize all properties of an object, except for functions which are ignored (and thus not serialized)
+ */
+type Serialized<T> = {
+    [K in keyof T as T[K] extends Function ? never : K]: Serializable<T[K]>;
 };
 
-export type Serializable<T> = T extends number[]
-    ? number[]
-    : T extends boolean[]
-    ? boolean[]
-    : T extends string[]
-    ? string[]
-    : T extends undefined[]
-    ? undefined[]
-    : T extends void[]
-    ? void[]
-    : T extends null[]
-    ? null[]
-    : T extends any[]
-    ? Serialized<T[number]>[]
-    : Serialized<T>;
+/**
+ * Represents a type that can be serialized to JSON. This could either be a primitive type, an array of serializable types, or a complex object
+ * Recursively serializes an object to a JSON-compatible object.
+ */
+export type Serializable<T> = T extends Primitive
+    ? T
+    : T extends Array<infer U>
+    ? Array<Serializable<U>>
+    : T extends object
+    ? Serialized<T>
+    : T;
 
-export type JSON<T> = T extends string
-    ? string
-    : T extends number
-    ? number
-    : T extends boolean
-    ? boolean
-    : T extends undefined
-    ? undefined
-    : T extends void
-    ? void
-    : T extends null
-    ? null
-    : Serializable<T>;
-
-export function serialize<T>(value: T): JSON<T> {
-    return JSON.parse(JSON.stringify(value)) as JSON<T>;
+/**
+ * Serializes a value to a JSON-compatible object (i.e. a Serializable<T>)
+ * @returns A JSON-compatible object that represents the value passed in with all functions removed and all objects recursively serialized
+ */
+export function serialize<T>(value: T): Serializable<T> {
+    return JSON.parse(JSON.stringify(value)) as Serializable<T>;
 }
 
 // THIS IS FOR TESTING THE TYPING
@@ -61,7 +44,26 @@ export function serialize<T>(value: T): JSON<T> {
 //     bar?: Test2;
 // };
 
-// let y: Test1['openNewTab'] extends object | undefined ? true : false;
-
 // let x: Serialized<Test1>;
 // //  ^?
+
+// type SerializedData = Serializable<Data>;
+
+// let data: SerializedData = {} as any;
+
+// data.url = undefined;
+
+// data = {
+//     a: 'test',
+//     b: 1,
+//     c: true,
+//     d: {
+//         e: 'test',
+//         t: undefined,
+//     },
+//     urls: [],
+// };
+
+// data.d = {
+//     e: 'test',
+// };

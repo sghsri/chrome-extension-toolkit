@@ -1,4 +1,4 @@
-import { JSON } from './Serialization';
+import { Serializable } from './Serialization';
 
 /**
  * A wrapper type that allows you to create a getter key
@@ -14,10 +14,8 @@ export type SET<T extends string> = `set${Capitalize<T>}`;
  */
 export type DataAccessors<T> = keyof T extends string
     ? {
-          [K in keyof T as SET<K>]: (value: T[K] | JSON<T[K]>) => Promise<void>;
+          [K in keyof T as SET<K>]: (value: T[K] | Serializable<T[K]>) => Promise<void>;
       } & {
-          [K in keyof T as GET<K>]: () => Promise<JSON<T[K]>>;
+          [K in keyof T as GET<K>]: () => Promise<Serializable<T[K]>>;
       }
     : never;
-
-
