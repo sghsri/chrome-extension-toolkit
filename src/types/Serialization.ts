@@ -3,7 +3,7 @@ type Primitive = string | number | boolean | null | undefined;
 /**
  * A type that represents a serialized object. This is a recursive type that will serialize all properties of an object, except for functions which are ignored (and thus not serialized)
  */
-type Serialized<T> = {
+export type Serialized<T> = {
     [K in keyof T as T[K] extends Function ? never : K]: Serializable<T[K]>;
 };
 
