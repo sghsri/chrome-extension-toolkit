@@ -49,7 +49,7 @@ export type Store<T = {}, C = {}> = Omit<DataAccessors<StoreDefaults<T>>, keyof 
         /**
          * Returns a promise that resolves to the entire contents of the store.
          */
-        all(): Promise<T>;
+        all(): Promise<Serializable<T>>;
 
         /**
          * Returns an array of all the keys in the store.
@@ -160,7 +160,7 @@ function createStore<T, C = {}>(
                 })
             );
         }
-        return fullStore as T;
+        return fullStore as Serializable<T>;
     };
 
     store.keys = () => keys;
