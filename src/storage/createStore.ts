@@ -1,4 +1,3 @@
-import { DataAccessors } from 'src/types/Storage';
 import { Security } from 'src/storage/Security';
 import { capitalize } from 'src/utils/string';
 import { Serializable } from '..';
@@ -31,45 +30,58 @@ export type OnChangedFunction<T> = (changes: DataChange<T>) => void;
  * A virtual wrapper around the chrome.storage API that allows you to segment and compartmentalize your data.
  * The data is all stored at the top level of the storage area, so you should namespace your keys to avoid collisions.
  */
-export type Store<T = {}, C = {}> = Omit<DataAccessors<StoreDefaults<T>>, keyof C> &
-    C & {
-        /**
-         * A unique identifier for the store. This is for debugging purposes only.
-         */
-        id: string;
-        /**
-         * The options that were passed to the createStore function
-         */
-        options: StoreOptions;
-        /**
-         * Initializes the store by setting any keys that are not already set to their default values. This will be called automatically when you first access a getter or setter.
-         */
-        initialize(): Promise<void>;
+export type Store<T = {}> = {
+    /**
+     * A unique identifier for the store. This is for debugging purposes only.
+     */
+    id: string;
+    /**
+     * The options that were passed to the createStore function
+     */
+    options: StoreOptions;
+    /**
+     * Initializes the store by setting any keys that are not already set to their default values. This will be called automatically when you first access a getter or setter.
+     */
+    initialize(): Promise<void>;
 
-        /**
-         * Returns a promise that resolves to the entire contents of the store.
-         */
-        all(): Promise<Serializable<T>>;
+    /**
+     * Gets the value of the specified key from the store.
+     * @param key the key to get the value of
+     * @returns a promise that resolves to the value of the specified key (wrapped in a Serialized type)
+     */
+    get<K extends keyof T>(key: K): Promise<Serializable<T[K]>>;
 
-        /**
-         * Returns an array of all the keys in the store.
-         */
-        keys(): string[];
+    /**
+     * Sets the value of the specified key in the store.
+     * @param key the key to set the value of
+     * @param value the value to set the key to
+     */
+    set<K extends keyof T>(key: K, value: T[K]): Promise<void>;
 
-        /**
-         * Adds a listener that will be called whenever the value of the specified key changes.
-         * @param key the key to observe
-         * @param callback a function that will be called whenever the value of the specified key changes
-         * @returns the listener function that was added
-         */
-        observe<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): (changes, area) => void;
+    /**
+     * Returns a promise that resolves to the entire contents of the store.
+     */
+    all(): Promise<Serializable<T>>;
 
-        /**
-         * Removes a listener that was added with onChanged.
-         * @param listener the listener function to remove
-         */
-        removeObserver(listener: (changes, area) => void): void;
-    };
+    /**
+     * Returns an array of all the keys in the store.
+     */
+    keys(): (keyof T & string)[];
+
+    /**
+     * Adds a listener that will be called whenever the value of the specified key changes.
+     * @param key the key to observe
+     * @param callback a function that will be called whenever the value of the specified key changes
+     * @returns the listener function that was added
+     */
+    listen<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): (changes, area) => void;
+
+    /**
+     * Removes a listener that was added with onChanged.
+     * @param listener the listener function to remove
+     */
+    removeListener(listener: (changes, area) => void): void;
+};
 
 /**
  * Options that modify the behavior of the store
@@ -87,16 +99,14 @@ const security = new Security();
  * A function that creates a virtual Store within the chrome.storage API.
  *
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
- * @param computed an optional function that allows you to override the generated getters and setters with your own. Provides a reference to the store itself so you can access this store's getters and setters.
  * @param area the storage area to use. Defaults to 'local'
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-function createStore<T, C = {}>(
+function createStore<T>(
     defaults: StoreDefaults<T>,
     area: 'sync' | 'local' | 'session' | 'managed',
-    computed?: (store: Store<T, C>) => C,
     options?: StoreOptions
-): Store<T, C> {
+): Store<T> {
     const keys = Object.keys(defaults) as string[];
     let isEncrypted = options?.isEncrypted || false;
 
@@ -106,7 +116,7 @@ function createStore<T, C = {}>(
 
     const store = {
         options,
-    } as Store<T, C>;
+    } as Store<T>;
 
     let hasInitialized = false;
     store.initialize = async () => {
@@ -126,27 +136,23 @@ function createStore<T, C = {}>(
         hasInitialized = true;
     };
 
-    keys.forEach(key => {
-        const get = `get${capitalize(key)}`;
-        const set = `set${capitalize(key)}`;
-        store[get] = async () => {
-            if (!hasInitialized) {
-                await store.initialize();
-            }
-            const value = (await chrome.storage[area].get(key))[key];
-            return isEncrypted ? await security.decrypt(value) : value;
-        };
+    store.get = async (key: any) => {
+        if (!hasInitialized) {
+            await store.initialize();
+        }
+        const value = (await chrome.storage[area].get(key))[key];
+        return isEncrypted ? await security.decrypt(value) : value;
+    };
 
-        store[set] = async (value: T[keyof T]) => {
-            if (!hasInitialized) {
-                await store.initialize();
-            }
+    store.set = async (key: any, value: any) => {
+        if (!hasInitialized) {
+            await store.initialize();
+        }
 
-            await chrome.storage[area].set({
-                [key]: isEncrypted ? await security.encrypt(value) : value,
-            });
-        };
-    });
+        await chrome.storage[area].set({
+            [key]: isEncrypted ? await security.encrypt(value) : value,
+        });
+    };
 
     store.all = async () => {
         if (!hasInitialized) {
@@ -163,9 +169,9 @@ function createStore<T, C = {}>(
         return fullStore as Serializable<T>;
     };
 
-    store.keys = () => keys;
+    store.keys = () => keys as (keyof T & string)[];
 
-    store.observe = (key, callback) => {
+    store.listen = (key, callback) => {
         const listener = async (changes, areaName) => {
             if (areaName !== area) return;
             if (!(key in changes)) return;
@@ -193,13 +199,9 @@ function createStore<T, C = {}>(
         return listener;
     };
 
-    store.removeObserver = listener => {
+    store.removeListener = listener => {
         chrome.storage.onChanged.removeListener(listener);
     };
-
-    if (computed) {
-        return Object.assign(store, computed(store));
-    }
 
     return store;
 }
@@ -213,12 +215,8 @@ function createStore<T, C = {}>(
  * @param area the storage area to use. Defaults to 'local'
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createLocalStore<T, C = {}>(
-    defaults: StoreDefaults<T>,
-    computed?: (store: Store<T, C>) => C,
-    options?: StoreOptions
-): Store<T, C> {
-    return createStore(defaults, 'local', computed, options);
+export function createLocalStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(defaults, 'local', options);
 }
 
 /**
@@ -227,16 +225,11 @@ export function createLocalStore<T, C = {}>(
  * This means that the data will be synced across all of the user's devices.
  *
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
- * @param computed an optional function that allows you to override the generated getters and setters with your own. Provides a reference to the store itself so you can access this store's getters and setters.
  * @param options options that modify the behavior of the store
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createSyncStore<T, C = {}>(
-    defaults: StoreDefaults<T>,
-    computed?: (store: Store<T, C>) => C,
-    options?: StoreOptions
-): Store<T, C> {
-    return createStore(defaults, 'sync', computed, options);
+export function createSyncStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(defaults, 'sync', options);
 }
 
 /**
@@ -244,18 +237,13 @@ export function createSyncStore<T, C = {}>(
  * This store will persist across browser sessions and managed by the administrator of the user's computer.
  *
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
- * @param computed an optional function that allows you to override the generated getters and setters with your own. Provides a reference to the store itself so you can access this store's getters and setters.
  * @param options options that modify the behavior of the store
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  * @see https://developer.chrome.com/docs/extensions/reference/storage/#type-ManagedStorageArea
  *
  */
-export function createManagedStore<T, C = {}>(
-    defaults: StoreDefaults<T>,
-    computed?: (store: Store<T, C>) => C,
-    options?: StoreOptions
-): Store<T, C> {
-    return createStore(defaults, 'managed', computed, options);
+export function createManagedStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(defaults, 'managed', options);
 }
 
 /**
@@ -266,38 +254,6 @@ export function createManagedStore<T, C = {}>(
  * @param options options that modify the behavior of the store
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createSessionStore<T, C = {}>(
-    defaults: StoreDefaults<T>,
-    computed?: (store: Store<T, C>) => C,
-    options?: StoreOptions
-): Store<T, C> {
-    return createStore(defaults, 'session', computed, options);
+export function createSessionStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(defaults, 'session', options);
 }
-
-// interface ITestStore {
-//     test: string;
-//     hello: number;
-// }
-
-// interface Actions {
-//     dumbTest: () => Promise<string>;
-//     getHello: () => Promise<string>;
-// }
-
-// const TestStore = createLocalStore<ITestStore, Actions>(
-//     {
-//         hello: 1,
-//         test: 'hello',
-//     },
-//     store => ({
-//         async dumbTest() {
-//             const value = await store.getTest();
-//             return value;
-//         },
-//         async getHello() {
-//             return `${await store.getHello()}`;
-//         },
-//     })
-// );
-
-// debugStore({ TestStore });
