@@ -1,5 +1,4 @@
 import { Security } from 'src/storage/Security';
-import { capitalize } from 'src/utils/string';
 import { Serializable } from '..';
 
 /** A utility type that forces you to declare all the values specified in the type interface for a module. */
@@ -49,6 +48,8 @@ export type Store<T = {}> = {
      * @param key the key to get the value of
      * @returns a promise that resolves to the value of the specified key (wrapped in a Serialized type)
      */
+
+    get<K extends keyof T>(keys: K[]): Promise<Serializable<Pick<T, K>>>;
     get<K extends keyof T>(key: K): Promise<Serializable<T[K]>>;
 
     /**
@@ -57,6 +58,7 @@ export type Store<T = {}> = {
      * @param value the value to set the key to
      */
     set<K extends keyof T>(key: K, value: T[K]): Promise<void>;
+    set<K extends keyof T>(values: Partial<T>): Promise<void>;
 
     /**
      * Returns a promise that resolves to the entire contents of the store.
@@ -140,13 +142,39 @@ function createStore<T>(
         if (!hasInitialized) {
             await store.initialize();
         }
+
+        if (Array.isArray(key)) {
+            const data = await chrome.storage[area].get(key);
+            if (isEncrypted) {
+                await Promise.all(
+                    key.map(async key => {
+                        data[key] = await security.decrypt(data[key]);
+                    })
+                );
+            }
+            return data;
+        }
+
         const value = (await chrome.storage[area].get(key))[key];
         return isEncrypted ? await security.decrypt(value) : value;
     };
 
-    store.set = async (key: any, value: any) => {
+    store.set = async (key: any, value?: any) => {
         if (!hasInitialized) {
             await store.initialize();
+        }
+
+        if (typeof key === 'object' && value === undefined) {
+            await chrome.storage[area].set(
+                isEncrypted
+                    ? await Promise.all(
+                          Object.keys(key).map(async key => ({
+                              [key]: await security.encrypt(key[key]),
+                          }))
+                      )
+                    : key
+            );
+            return;
         }
 
         await chrome.storage[area].set({
@@ -257,3 +285,13 @@ export function createManagedStore<T>(defaults: StoreDefaults<T>, options?: Stor
 export function createSessionStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
     return createStore(defaults, 'session', options);
 }
+
+// interface ITest {
+//     test: string;
+//     hello: number;
+// }
+
+// const store = createLocalStore<ITest>({
+//     test: 'tes',
+//     hello: 5,
+// });
