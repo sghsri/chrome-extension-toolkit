@@ -10,7 +10,9 @@ export type MessageDefinition<T extends Record<string, (data: Record<string, any
 /**
  * A helper type to extract the data type of a message handler.
  */
-export type MessageData<M, K extends keyof M> = Parameters<M[K] extends (...args: any) => any ? M[K] : never>[0];
+export type MessageData<M, K extends keyof M> = Serializable<
+    Parameters<M[K] extends (...args: any) => any ? M[K] : never>[0]
+>;
 
 /**
  * A helper type to extract the resolved type of a message handler.
@@ -45,7 +47,7 @@ export enum MessageEndpoint {
 export type MessageHandler<M> = {
     [K in keyof M]: (context: {
         /** The data sent with the message. */
-        data: Serializable<MessageData<M, K>>;
+        data: MessageData<M, K>;
         /** The tab or page or background service worker that sent the message. */
         sender: chrome.runtime.MessageSender;
         /** A function that can be used to send a response asynchronously to the sender. */

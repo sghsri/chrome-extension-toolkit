@@ -1,11 +1,11 @@
-import { MessageEndpoint, Message, Serializable, MessageData, MessageResponse } from 'src/types';
+import { MessageEndpoint, Message, MessageData, MessageResponse } from 'src/types';
 /**
  * An object that can be used to send messages to the background script.
  */
 export type BackgroundMessenger<M> = {
     [K in keyof M]: MessageData<M, K> extends undefined
-        ? () => Promise<Serializable<MessageResponse<M, K>>>
-        : (data: MessageData<M, K>) => Promise<Serializable<MessageResponse<M, K>>>;
+        ? () => Promise<MessageResponse<M, K>>
+        : (data: MessageData<M, K>) => Promise<MessageResponse<M, K>>;
 };
 
 /**
@@ -13,8 +13,8 @@ export type BackgroundMessenger<M> = {
  */
 export type TabMessenger<M> = {
     [K in keyof M]: MessageData<M, K> extends undefined
-        ? (tab: number | 'ALL') => Promise<Serializable<MessageResponse<M, K>>>
-        : (data: MessageData<M, K>, tab: number | 'ALL') => Promise<Serializable<MessageResponse<M, K>>>;
+        ? (tab: number | 'ALL') => Promise<MessageResponse<M, K>>
+        : (data: MessageData<M, K>, tab: number | 'ALL') => Promise<MessageResponse<M, K>>;
 };
 
 /**
