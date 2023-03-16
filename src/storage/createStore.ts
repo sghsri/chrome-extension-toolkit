@@ -57,8 +57,8 @@ export type Store<T = {}> = {
      * @param key the key to set the value of
      * @param value the value to set the key to
      */
-    set<K extends keyof T>(key: K, value: T[K]): Promise<void>;
-    set<K extends keyof T>(values: Partial<T>): Promise<void>;
+    set<K extends keyof T>(key: K, value: Serializable<T[K]>): Promise<void>;
+    set<K extends keyof T>(values: Partial<Serializable<T>>): Promise<void>;
 
     /**
      * Returns a promise that resolves to the entire contents of the store.
