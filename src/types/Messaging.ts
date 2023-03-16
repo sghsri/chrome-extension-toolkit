@@ -15,7 +15,9 @@ export type MessageData<M, K extends keyof M> = Parameters<M[K] extends (...args
 /**
  * A helper type to extract the resolved type of a message handler.
  */
-export type MessageResponse<M, K extends keyof M> = ReturnType<M[K] extends (...args: any) => any ? M[K] : never>;
+export type MessageResponse<M, K extends keyof M> = Serializable<
+    ReturnType<M[K] extends (...args: any) => any ? M[K] : never>
+>;
 /**
  * The internal object representing a message sent between chrome extension contexts.
  */
