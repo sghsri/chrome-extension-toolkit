@@ -21,7 +21,7 @@ export default function getScriptType(): ScriptType | null {
         return null;
     }
     const manifest = chrome.runtime.getManifest();
-    if (global.window === undefined) {
+    if (globalThis.window === undefined) {
         return ScriptType.BACKGROUND_SCRIPT;
     }
 
