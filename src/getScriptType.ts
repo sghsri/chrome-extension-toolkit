@@ -62,7 +62,9 @@ export function isExtensionPopup(): boolean {
 /**
  * A helper function to check if the code is running in an extension page (popup, options, etc.).
  * @returns true if the code is running in an extension page (popup, options, etc.), false otherwise.
+ * @param pageName The name of the page to check for. ex: 'options.html'
  */
-export function isExtensionPage(): boolean {
-    return getScriptType() === ScriptType.EXTENSION_PAGE;
+export function isExtensionPage(pageName?: string): boolean {
+    const isPage = getScriptType() === ScriptType.EXTENSION_PAGE;
+    return isPage && pageName ? window.location.href.includes(pageName) : isPage;
 }
