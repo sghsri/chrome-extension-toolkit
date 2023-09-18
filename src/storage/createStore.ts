@@ -48,8 +48,6 @@ export type Store<T = {}> = {
      * @param key the key to get the value of
      * @returns a promise that resolves to the value of the specified key (wrapped in a Serialized type)
      */
-
-    get<K extends keyof T>(keys: K[]): Promise<Serializable<Pick<T, K>>>;
     get<K extends keyof T>(key: K): Promise<Serializable<T[K]>>;
 
     /**
@@ -141,18 +139,6 @@ function createStore<T>(
     store.get = async (key: any) => {
         if (!hasInitialized) {
             await store.initialize();
-        }
-
-        if (Array.isArray(key)) {
-            const data = await chrome.storage[area].get(key);
-            if (isEncrypted) {
-                await Promise.all(
-                    key.map(async key => {
-                        data[key] = await security.decrypt(data[key]);
-                    })
-                );
-            }
-            return data;
         }
 
         const value = (await chrome.storage[area].get(key))[key];
