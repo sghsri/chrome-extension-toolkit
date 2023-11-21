@@ -1,17 +1,16 @@
 import { MessageEndpoint, Message, MessageData, MessageResponse } from 'src/types';
 /**
  * An object that can be used to send messages to the background script.
- */
-export type BackgroundMessenger<M> = {
+ */ export type BackgroundMessenger<M> = {
     [K in keyof M]: MessageData<M, K> extends undefined
         ? () => Promise<MessageResponse<M, K>>
         : (data: MessageData<M, K>) => Promise<MessageResponse<M, K>>;
 };
 
 /**
- * an object that can be used to send messages to a tab OR extension pages (popup, options, etc.)
+ * an object that can be used to send messages to the foreground (tabs OR extension pages (popup, options, etc.))
  */
-export type TabMessenger<M> = {
+export type ForegroundMessenger<M> = {
     [K in keyof M]: MessageData<M, K> extends undefined
         ? (tab: number | 'ALL') => Promise<MessageResponse<M, K>>
         : (data: MessageData<M, K>, tab: number | 'ALL') => Promise<MessageResponse<M, K>>;
@@ -20,9 +19,9 @@ export type TabMessenger<M> = {
 /**
  * A wrapper for chrome extension messaging with a type-safe API.
  * @type To which context the messages are sent.
- * @returns A proxy object that can be used to send messages to the tabs and extension pages (popup, options, etc.)
+ * @returns A proxy object that can be used to send messages to the foreground (tabs or extension pages (popup, options, etc.))
  */
-export function createMessenger<M>(destination: 'tab'): TabMessenger<M>;
+export function createMessenger<M>(destination: 'foreground'): ForegroundMessenger<M>;
 /**
  *  A wrapper for chrome extension messaging with a type-safe API.
  * @param type To which context the messages are sent.
@@ -34,12 +33,12 @@ export function createMessenger<M>(destination: 'background'): BackgroundMesseng
  * @param destination To which context the messages are sent.
  * @returns A proxy object that can be used to send messages to the background script.
  */
-export function createMessenger<M>(destination: 'background' | 'tab') {
+export function createMessenger<M>(destination: 'background' | 'foreground') {
     let to: MessageEndpoint = MessageEndpoint.BACKGROUND;
-    let from: MessageEndpoint = MessageEndpoint.VIEW;
+    let from: MessageEndpoint = MessageEndpoint.FOREGROUND;
 
-    if (destination === 'tab') {
-        to = MessageEndpoint.VIEW;
+    if (destination === 'foreground') {
+        to = MessageEndpoint.FOREGROUND;
         from = MessageEndpoint.BACKGROUND;
     }
 
@@ -86,7 +85,7 @@ export function createMessenger<M>(destination: 'background' | 'tab') {
                         to,
                     };
 
-                    if (to === MessageEndpoint.VIEW && dest) {
+                    if (to === MessageEndpoint.FOREGROUND && dest) {
                         // for messages sent to the tabs, we want to send to the tabs using chrome.tabs.sendMessage,
                         if (typeof dest === 'number') {
                             return chrome.tabs.sendMessage(dest, message, onMessageResponse(resolve, reject));

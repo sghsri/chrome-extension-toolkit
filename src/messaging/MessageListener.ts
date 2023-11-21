@@ -21,7 +21,7 @@ export class MessageListener<M> implements IMessageListener<M> {
         this.handlers = handlers;
         this.onError = onError;
 
-        // we want to know what type of script we are running in so we can determine what endpoint we are (background or tab)
+        // we want to know what type of script we are running in so we can determine what endpoint we are (background or foreground)
         const scriptType = getScriptType();
         if (!scriptType) {
             throw new Error('Unable to determine extension script type.');
@@ -30,9 +30,9 @@ export class MessageListener<M> implements IMessageListener<M> {
 
         if (this.scriptType === ScriptType.BACKGROUND_SCRIPT) {
             this.myEndpoint = MessageEndpoint.BACKGROUND;
-            this.listeningFor = MessageEndpoint.VIEW;
+            this.listeningFor = MessageEndpoint.FOREGROUND;
         } else {
-            this.myEndpoint = MessageEndpoint.VIEW;
+            this.myEndpoint = MessageEndpoint.FOREGROUND;
             this.listeningFor = MessageEndpoint.BACKGROUND;
         }
     }

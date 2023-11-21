@@ -37,8 +37,8 @@ export type Message<M> = {
 export enum MessageEndpoint {
     /** The background script or service worker. */
     BACKGROUND = 'BACKGROUND',
-    /** A tab or extension page (popup, options, etc) */
-    VIEW = 'VIEW',
+    /** A foreground or extension page (popup, options, etc) */
+    FOREGROUND = 'FOREGROUND',
 }
 
 /**
