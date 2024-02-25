@@ -11,9 +11,7 @@ import { MessageEndpoint, Message, MessageData, MessageResponse } from 'src/type
  * an object that can be used to send messages to the foreground (tabs OR extension pages (popup, options, etc.))
  */
 export type ForegroundMessenger<M> = {
-    [K in keyof M]: MessageData<M, K> extends undefined
-        ? (tab: number | 'ALL') => Promise<MessageResponse<M, K>>
-        : (data: MessageData<M, K>, tab: number | 'ALL') => Promise<MessageResponse<M, K>>;
+    [K in keyof M]: (data: MessageData<M, K>, tab: number | 'ALL') => Promise<MessageResponse<M, K>>;
 };
 
 /**
