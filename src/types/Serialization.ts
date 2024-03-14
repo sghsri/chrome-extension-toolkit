@@ -27,7 +27,7 @@ export function serialize<T>(value: T): Serializable<T> {
     return JSON.parse(JSON.stringify(value)) as Serializable<T>;
 }
 
-// THIS IS FOR TESTING THE TYPING
+// THIS IS FOR TESTINWG THE TYPING
 
 // type Test2 = {
 //     test: string;

@@ -25,9 +25,7 @@ const closeButtonStyle: React.CSSProperties = {
 };
 
 interface Props {
-    backgroundColor: string;
-    color: string;
-    fontFamily?: string;
+    className?: string;
     onClick?: () => void;
 }
 
@@ -50,11 +48,9 @@ export function ContextInvalidated(props: Props): JSX.Element | null {
         <div
             style={{
                 ...containerStyle,
-                backgroundColor: props.backgroundColor,
-                color: props.color,
-                fontFamily: props.fontFamily || 'Inter',
             }}
             id="extension-context-invalidated"
+            className={props.className}
             onClick={props.onClick ?? reload}
         >
             Context Extension Context invalidated. Click to reload
