@@ -75,7 +75,7 @@ export type Store<T = {}> = {
      * @param defaultValue an optional default value to use if the key is not already set
      * @returns a tuple containing the value of the specified key, and a function to set the value
      */
-    use<K extends keyof T, T, D extends Serializable<T[K]> | undefined = undefined>(
+    use<K extends keyof T, D extends Serializable<T[K]> | undefined = undefined>(
         key: K,
         defaultValue?: D
     ): [
@@ -310,12 +310,12 @@ export function createSessionStore<T>(defaults: StoreDefaults<T>, options?: Stor
     return createStore(defaults, 'session', options);
 }
 
-// interface ITest {
-//     test: string;
-//     hello: number;
-// }
+interface ITest {
+    test: string;
+    hello: number;
+}
 
-// const store = createLocalStore<ITest>({
-//     test: 'tes',
-//     hello: 5,
-// });
+const store = createLocalStore<ITest>({
+    test: 'tes',
+    hello: 5,
+});
