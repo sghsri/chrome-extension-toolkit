@@ -309,13 +309,3 @@ export function createManagedStore<T>(defaults: StoreDefaults<T>, options?: Stor
 export function createSessionStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
     return createStore(defaults, 'session', options);
 }
-
-interface ITest {
-    test: string;
-    hello: number;
-}
-
-const store = createLocalStore<ITest>({
-    test: 'tes',
-    hello: 5,
-});
