@@ -1,4 +1,5 @@
 import { Security } from 'src/storage/Security';
+import { useEffect, useState } from 'react';
 import { Serializable } from '..';
 
 /** A utility type that forces you to declare all the values specified in the type interface for a module. */
@@ -67,6 +68,20 @@ export type Store<T = {}> = {
      * Returns an array of all the keys in the store.
      */
     keys(): (keyof T & string)[];
+
+    /**
+     * A react hook that allows you to get and set the value of the specified key in the store from a functional component.
+     * @param key the key to get the value of
+     * @param defaultValue an optional default value to use if the key is not already set
+     * @returns a tuple containing the value of the specified key, and a function to set the value
+     */
+    use<K extends keyof T, T, D extends Serializable<T[K]> | undefined = undefined>(
+        key: K,
+        defaultValue?: D
+    ): [
+        D extends Serializable<T[K]> ? Serializable<T[K]> : Serializable<T[K]> | undefined,
+        (value: Serializable<T[K]>) => void
+    ];
 
     /**
      * Adds a listener that will be called whenever the value of the specified key changes.
@@ -168,6 +183,29 @@ function createStore<T>(
         });
     };
 
+    // @ts-ignore
+    store.use = (key: keyof T, defaultValue?: T[typeof key]) => {
+        const [value, setValue] = useState(defaultValue);
+
+        useEffect(() => {
+            store.get(key).then(setValue as any);
+
+            const onChanged = ({ newValue }: DataChange<T[typeof key]>) => {
+                setValue(newValue as any);
+            };
+            store.listen(key, onChanged);
+            return () => {
+                store.removeListener(onChanged);
+            };
+        }, [key]);
+
+        const set = async (newValue: T[typeof key]) => {
+            await store.set(key, newValue as any);
+            setValue(newValue);
+        };
+
+        return [value, set] as any;
+    };
     store.all = async () => {
         if (!hasInitialized) {
             await store.initialize();
