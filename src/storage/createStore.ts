@@ -165,22 +165,45 @@ function createStore<T>(
             await store.initialize();
         }
 
+        // Handle the case where key is an object
         if (typeof key === 'object' && value === undefined) {
-            await chrome.storage[area].set(
-                isEncrypted
-                    ? await Promise.all(
-                          Object.keys(key).map(async key => ({
-                              [key]: await security.encrypt(key[key]),
-                          }))
-                      )
-                    : key
-            );
+            const entriesToRemove: string[] = [];
+            const entriesToSet = {};
+
+            for (const [k, v] of Object.entries(key)) {
+                if (v === undefined) {
+                    // Prepare to remove this key
+                    entriesToRemove.push(k);
+                } else {
+                    // Prepare to set this key
+                    // eslint-disable-next-line no-await-in-loop
+                    entriesToSet[k] = isEncrypted ? await security.encrypt(v) : v;
+                }
+            }
+
+            // Remove keys with undefined values
+            if (entriesToRemove.length > 0) {
+                await chrome.storage[area].remove(entriesToRemove);
+            }
+
+            // Set keys with defined values
+            if (Object.keys(entriesToSet).length > 0) {
+                await chrome.storage[area].set(entriesToSet);
+            }
+
             return;
         }
 
-        await chrome.storage[area].set({
-            [key]: isEncrypted ? await security.encrypt(value) : value,
-        });
+        // Direct key-value pair handling
+        if (value === undefined) {
+            // Remove if value is explicitly undefined
+            await chrome.storage[area].remove(key);
+        } else {
+            // Set the value, applying encryption if necessary
+            await chrome.storage[area].set({
+                [key]: isEncrypted ? await security.encrypt(value) : value,
+            });
+        }
     };
 
     // @ts-ignore
