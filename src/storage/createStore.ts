@@ -80,7 +80,7 @@ export type Store<T = {}> = {
         defaultValue?: D
     ): [
         D extends Serializable<T[K]> ? Serializable<T[K]> : Serializable<T[K]> | undefined,
-        (value: Serializable<T[K]>) => void
+        (value: Serializable<T[K]>) => Promise<void>
     ];
 
     /**
