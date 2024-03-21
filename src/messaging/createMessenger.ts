@@ -8,10 +8,22 @@ import { MessageEndpoint, Message, MessageData, MessageResponse } from 'src/type
 };
 
 /**
+ * Where the foreground message is being sent to specifically (which tab or frame)
+ */
+type ForegroundMessageOptions =
+    | {
+          tabId: number;
+          frameId?: number;
+      }
+    | {
+          tabId: 'ALL';
+      };
+
+/**
  * an object that can be used to send messages to the foreground (tabs OR extension pages (popup, options, etc.))
  */
 export type ForegroundMessenger<M> = {
-    [K in keyof M]: (data: MessageData<M, K>, tab: number | 'ALL') => Promise<MessageResponse<M, K>>;
+    [K in keyof M]: (data: MessageData<M, K>, options: ForegroundMessageOptions) => Promise<MessageResponse<M, K>>;
 };
 
 /**
@@ -74,7 +86,7 @@ export function createMessenger<M>(destination: 'background' | 'foreground') {
     const sender = new Proxy({} as any, {
         get(target, prop) {
             const name = prop as keyof M;
-            return async (data: MessageData<M, any>, dest?: number | 'ALL') =>
+            return async (data: MessageData<M, any>, options?: ForegroundMessageOptions) =>
                 new Promise((resolve, reject) => {
                     const message: Message<M> = {
                         name,
@@ -83,12 +95,18 @@ export function createMessenger<M>(destination: 'background' | 'foreground') {
                         to,
                     };
 
-                    if (to === MessageEndpoint.FOREGROUND && dest) {
+                    if (to === MessageEndpoint.FOREGROUND && options) {
                         // for messages sent to the tabs, we want to send to the tabs using chrome.tabs.sendMessage,
-                        if (typeof dest === 'number') {
-                            return chrome.tabs.sendMessage(dest, message, onMessageResponse(resolve, reject));
+                        const { tabId } = options;
+                        if (typeof tabId === 'number') {
+                            return chrome.tabs.sendMessage(
+                                tabId,
+                                message,
+                                { frameId: options.frameId },
+                                onMessageResponse(resolve, reject)
+                            );
                         }
-                        if (dest === 'ALL') {
+                        if (tabId === 'ALL') {
                             return sendTabMessageToAllTabs(message);
                         }
                     }
