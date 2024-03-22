@@ -51,7 +51,6 @@ export class MessageListener<M> implements IMessageListener<M> {
         const handler = this.handlers[messageName];
         if (!handler) {
             // this message is for my current context, but I don't have a handler for it, so ignore it
-            console.error(`No handler for message ${messageName}`, message, sender);
             return true;
         }
         try {
