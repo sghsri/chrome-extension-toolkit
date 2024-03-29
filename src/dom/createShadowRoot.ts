@@ -2,7 +2,9 @@
  * An extension of HTMLDivElement that represents a shadow root for use within an Extension Content Script.
  */
 interface HTMLShadowDOMElement extends HTMLDivElement {
-    shadowRoot: ShadowRoot;
+    shadowRoot: ShadowRoot & {
+        INJECTION_POINT: HTMLDivElement;
+    };
     /**
      * Adds a style sheet to the shadow root.
      * @param path the path to the style sheet relative to the extension's root directory. uses chrome.runtime.getURL to get the absolute path.
@@ -31,12 +33,17 @@ export function createShadowDOM(id: string, options?: ShadowRootInit): HTMLShado
         ...(options || {}),
     });
 
-    div.addStyle = async function (path: string) {
+    const INJECTION_POINT = document.createElement('div');
+    INJECTION_POINT.id = 'INJECTION_POINT';
+    div.shadowRoot.appendChild(INJECTION_POINT);
+    div.shadowRoot.INJECTION_POINT = INJECTION_POINT;
+
+    div.addStyle = async (path: string) => {
         const style = await fetch(chrome.runtime.getURL(path));
         const styleNode = document.createElement('style');
         const parsedStyle = await style.text();
         styleNode.textContent = parsedStyle;
-        this.shadowRoot.appendChild(styleNode);
+        div.shadowRoot.appendChild(styleNode);
     };
 
     html.appendChild(div);
