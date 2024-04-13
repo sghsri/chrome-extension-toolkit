@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 import { Security } from 'src/storage/Security';
 import { useEffect, useState } from 'react';
 import { Serializable } from '..';
@@ -32,9 +33,9 @@ export type OnChangedFunction<T> = (changes: DataChange<T>) => void;
  */
 export type Store<T = {}> = {
     /**
-     * A unique identifier for the store. This is for debugging purposes only.
+     * A unique identifier for the store. This will be prepended to all keys in the store to avoid collisions.
      */
-    id: string;
+    storeId: string;
     /**
      * The options that were passed to the createStore function
      */
@@ -84,18 +85,17 @@ export type Store<T = {}> = {
     ];
 
     /**
-     * Adds a listener that will be called whenever the value of the specified key changes.
-     * @param key the key to observe
-     * @param callback a function that will be called whenever the value of the specified key changes
-     * @returns the listener function that was added
+     * Subscribes to changes in the specified key in the store, and calls the specified function when the key changes.
+     * @param key the key to subscribe to
+     * @param callback the function to call when the key changes
      */
-    listen<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): (changes, area) => void;
+    subscribe<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): (changes, area) => void;
 
     /**
-     * Removes a listener that was added with onChanged.
-     * @param listener the listener function to remove
+     * Removes a subscription that was added with the subscribe function.
+     * @param sub the subscription function that was added
      */
-    removeListener(listener: (changes, area) => void): void;
+    unsubscribe(sub: (changes, area) => void): void;
 };
 
 /**
@@ -111,18 +111,21 @@ type StoreOptions = {
 const security = new Security();
 
 /**
- * A function that creates a virtual Store within the chrome.storage API.
+ * A function that creates a virtual storage bucket within the chrome.storage API.
  *
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
  * @param area the storage area to use. Defaults to 'local'
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
 function createStore<T>(
+    storeId: string,
     defaults: StoreDefaults<T>,
     area: 'sync' | 'local' | 'session' | 'managed',
     options?: StoreOptions
 ): Store<T> {
     const keys = Object.keys(defaults) as string[];
+    const actualKeys = keys.map(key => `${storeId}:${key}`);
+
     let isEncrypted = options?.isEncrypted || false;
 
     if (isEncrypted && !process.env.EXTENSION_STORAGE_PASSWORD) {
@@ -130,19 +133,19 @@ function createStore<T>(
     }
 
     const store = {
+        storeId,
         options,
     } as Store<T>;
 
     let hasInitialized = false;
     store.initialize = async () => {
-        const data = await chrome.storage[area].get(keys);
-        const missingKeys = keys.filter(key => data[key] === undefined);
+        const data = await chrome.storage[area].get(actualKeys);
+        const missingKeys = actualKeys.filter(key => data[key] === undefined);
 
         if (missingKeys.length) {
             const defaultsToSet = {};
 
             for (const key of missingKeys) {
-                // eslint-disable-next-line no-await-in-loop
                 defaultsToSet[key] = isEncrypted ? await security.encrypt(defaults[key]) : defaults[key];
             }
 
@@ -156,7 +159,9 @@ function createStore<T>(
             await store.initialize();
         }
 
-        const value = (await chrome.storage[area].get(key))[key];
+        const actualKey = `${storeId}:${key}`;
+
+        const value = (await chrome.storage[area].get(actualKey))[actualKey];
         return isEncrypted ? await security.decrypt(value) : value;
     };
 
@@ -171,13 +176,12 @@ function createStore<T>(
             const entriesToSet = {};
 
             for (const [k, v] of Object.entries(key)) {
+                const actualKey = `${storeId}:${k}`;
                 if (v === undefined) {
                     // Prepare to remove this key
-                    entriesToRemove.push(k);
+                    entriesToRemove.push(actualKey);
                 } else {
-                    // Prepare to set this key
-                    // eslint-disable-next-line no-await-in-loop
-                    entriesToSet[k] = isEncrypted ? await security.encrypt(v) : v;
+                    entriesToSet[actualKey] = isEncrypted ? await security.encrypt(v) : v;
                 }
             }
 
@@ -193,17 +197,69 @@ function createStore<T>(
 
             return;
         }
+        // now we know key is a string, so lets either set or remove it directly
 
-        // Direct key-value pair handling
+        const actualKey = `${storeId}:${key}`;
         if (value === undefined) {
             // Remove if value is explicitly undefined
-            await chrome.storage[area].remove(key);
-        } else {
-            // Set the value, applying encryption if necessary
-            await chrome.storage[area].set({
-                [key]: isEncrypted ? await security.encrypt(value) : value,
-            });
+            return await chrome.storage[area].remove(actualKey);
         }
+
+        // Set the value, applying encryption if necessary
+        await chrome.storage[area].set({
+            [actualKey]: isEncrypted ? await security.encrypt(value) : value,
+        });
+    };
+
+    store.all = async () => {
+        if (!hasInitialized) {
+            await store.initialize();
+        }
+        const fullStore = await chrome.storage[area].get(actualKeys);
+        if (isEncrypted) {
+            await Promise.all(
+                keys.map(async key => {
+                    const actualKey = `${storeId}:${key}`;
+                    fullStore[key] = await security.decrypt(fullStore[actualKey]);
+                })
+            );
+        }
+        return fullStore as Serializable<T>;
+    };
+
+    store.keys = () => keys as (keyof T & string)[];
+
+    store.subscribe = (key, callback) => {
+        const sub = async (changes, areaName) => {
+            const actualKey = `${storeId}:${key as string}`;
+            if (areaName !== area) return;
+            if (!(actualKey in changes)) return;
+
+            if (!isEncrypted) {
+                callback({
+                    oldValue: changes[actualKey].oldValue,
+                    newValue: changes[actualKey].newValue,
+                });
+                return;
+            }
+
+            const [oldValue, newValue] = await Promise.all([
+                security.decrypt(changes[actualKey].oldValue),
+                security.decrypt(changes[actualKey].newValue),
+            ]);
+
+            callback({
+                oldValue,
+                newValue,
+            });
+        };
+
+        chrome.storage.onChanged.addListener(sub);
+        return sub;
+    };
+
+    store.unsubscribe = sub => {
+        chrome.storage.onChanged.removeListener(sub);
     };
 
     // @ts-ignore
@@ -216,9 +272,9 @@ function createStore<T>(
             const onChanged = ({ newValue }: DataChange<T[typeof key]>) => {
                 setValue(newValue as any);
             };
-            store.listen(key, onChanged);
+            store.subscribe(key, onChanged);
             return () => {
-                store.removeListener(onChanged);
+                store.unsubscribe(onChanged);
             };
         }, [key]);
 
@@ -229,106 +285,62 @@ function createStore<T>(
 
         return [value, set] as any;
     };
-    store.all = async () => {
-        if (!hasInitialized) {
-            await store.initialize();
-        }
-        const fullStore = await chrome.storage[area].get(keys);
-        if (isEncrypted) {
-            await Promise.all(
-                keys.map(async key => {
-                    fullStore[key] = await security.decrypt(fullStore[key]);
-                })
-            );
-        }
-        return fullStore as Serializable<T>;
-    };
-
-    store.keys = () => keys as (keyof T & string)[];
-
-    store.listen = (key, callback) => {
-        const listener = async (changes, areaName) => {
-            if (areaName !== area) return;
-            if (!(key in changes)) return;
-
-            if (!isEncrypted) {
-                callback({
-                    oldValue: changes[key].oldValue,
-                    newValue: changes[key].newValue,
-                });
-                return;
-            }
-
-            const [oldValue, newValue] = await Promise.all([
-                security.decrypt(changes[key].oldValue),
-                security.decrypt(changes[key].newValue),
-            ]);
-
-            callback({
-                oldValue,
-                newValue,
-            });
-        };
-
-        chrome.storage.onChanged.addListener(listener);
-        return listener;
-    };
-
-    store.removeListener = listener => {
-        chrome.storage.onChanged.removeListener(listener);
-    };
 
     return store;
 }
 
 /**
- * A function that creates a virtual Store within the chrome.storage.local API.
+ * A function that creates a virtual storage bucket within the chrome.storage.local API.
  * This store will persist across browser sessions and be stored on the user's computer.
  *
+ * @param storeId A unique key to use for this store. This will be prepended to all keys in the store to avoid collisions. ex: 'my-store' -> 'my-store:myKey'
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
  * @param computed an optional function that allows you to override the generated getters and setters with your own. Provides a reference to the store itself so you can access this store's getters and setters.
  * @param area the storage area to use. Defaults to 'local'
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createLocalStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
-    return createStore(defaults, 'local', options);
+export function createLocalStore<T>(storeId: string, defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(storeId, defaults, 'local', options);
 }
 
 /**
- * A function that creates a virtual Store within the chrome.storage.sync API.
+ * A function that creates a virtual storage bucket within the chrome.storage.sync API.
  * This store will persist across browser sessions and be stored on the user's Google account (if they are logged in).
  * This means that the data will be synced across all of the user's devices.
  *
+ * @param storeId A unique key to use for this store. This will be prepended to all keys in the store to avoid collisions. ex: 'my-store' -> 'my-store:myKey'
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
  * @param options options that modify the behavior of the store
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createSyncStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
-    return createStore(defaults, 'sync', options);
+export function createSyncStore<T>(storeId: string, defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(storeId, defaults, 'sync', options);
 }
 
 /**
- * A function that creates a virtual Store within the chrome.storage.managed API.
+ * A function that creates a virtual storage bucket within the chrome.storage.managed API.
  * This store will persist across browser sessions and managed by the administrator of the user's computer.
  *
+ * @param storeId A unique key to use for this store. This will be prepended to all keys in the store to avoid collisions. ex: 'my-store' -> 'my-store:myKey'
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
  * @param options options that modify the behavior of the store
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  * @see https://developer.chrome.com/docs/extensions/reference/storage/#type-ManagedStorageArea
  *
  */
-export function createManagedStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
-    return createStore(defaults, 'managed', options);
+export function createManagedStore<T>(storeId: string, defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(storeId, defaults, 'managed', options);
 }
 
 /**
- * A function that creates a virtual Store within the chrome.storage.session API.
+ * A function that creates a virtual storage bucket within the chrome.storage.session API.
  * This store will NOT persist across browser sessions and will be stored in memory. This will reset when the browser is closed.
  *
+ * @param storeId A unique key to use for this store. This will be prepended to all keys in the store to avoid collisions. ex: 'my-store' -> 'my-store:myKey'
  * @param defaults the default values for the store (these will be used to initialize the store if the key is not already set, and will be used as the type for the getters and setters)
  * @param options options that modify the behavior of the store
  * @returns an object which contains getters/setters for the keys in the defaults object, as well as an initialize function and an onChanged functions
  */
-export function createSessionStore<T>(defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
-    return createStore(defaults, 'session', options);
+export function createSessionStore<T>(storeId: string, defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
+    return createStore(storeId, defaults, 'session', options);
 }
