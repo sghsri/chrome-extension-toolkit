@@ -146,7 +146,8 @@ function createStore<T>(
             const defaultsToSet = {};
 
             for (const key of missingKeys) {
-                defaultsToSet[key] = isEncrypted ? await security.encrypt(defaults[key]) : defaults[key];
+                const value = defaults[key.replace(`${storeId}:`, '')];
+                defaultsToSet[key] = isEncrypted ? await security.encrypt(value) : value;
             }
 
             await chrome.storage[area].set(defaultsToSet);
