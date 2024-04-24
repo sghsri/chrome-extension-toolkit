@@ -86,9 +86,12 @@ export type Store<T = {}> = {
      * @param key the key to get the value of or null to get the entire store
      * @returns a tuple containing the value of the specified key, and a function to set the value
      */
-    use<K extends keyof T | null, D extends K extends keyof T ? Serializable<T[K]> : T>(
+    use<K extends keyof T | null>(
         key: K
-    ): [D, (value: D) => Promise<void>];
+    ): [
+        K extends keyof T ? Serializable<T[K]> : T,
+        (value: K extends keyof T ? Serializable<T[K]> : Partial<Serializable<T>>) => Promise<void>
+    ];
 
     /**
      * A react hook that allows you to get and set the value of the specified key in the store from a functional component.
@@ -100,7 +103,7 @@ export type Store<T = {}> = {
         defaultValue: K extends keyof T ? Serializable<T[K]> : T
     ): [
         K extends keyof T ? Serializable<T[K]> : T,
-        (value: K extends keyof T ? Serializable<T[K]> : T) => Promise<void>
+        (value: K extends keyof T ? Serializable<T[K]> : Partial<Serializable<T>>) => Promise<void>
     ];
 
     /**
