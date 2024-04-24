@@ -12,6 +12,7 @@ export type StoreDefaults<T> = {
  * Represents a change in data within the store.
  */
 export type DataChange<T> = {
+    key: string;
     /**
      * The old value of the data. This will be undefined if the data was just initialized.
      */
@@ -85,17 +86,22 @@ export type Store<T = {}> = {
      * @param key the key to get the value of
      * @returns a tuple containing the value of the specified key, and a function to set the value
      */
-    use<K extends keyof T, D extends Serializable<T[K]>>(key: K): [D, (value: D) => Promise<void>];
+    use<K extends keyof T | null, D extends K extends keyof T ? Serializable<T[K]> : T>(
+        key: K
+    ): [D, (value: D) => Promise<void>];
 
     /**
      * A react hook that allows you to get and set the value of the specified key in the store from a functional component.
      * @param key the key to get the value of
      * @param defaultValue the default value to use if the key is not already set
      */
-    use<K extends keyof T>(
+    use<K extends keyof T | null>(
         key: K,
-        defaultValue: Serializable<T[K]>
-    ): [Serializable<T[K]>, (value: Serializable<T[K]>) => Promise<void>];
+        defaultValue: K extends keyof T ? Serializable<T[K]> : T
+    ): [
+        K extends keyof T ? Serializable<T[K]> : T,
+        (value: K extends keyof T ? Serializable<T[K]> : T) => Promise<void>
+    ];
 
     /**
      * Subscribes to changes in the specified key in the store, and calls the specified function when the key changes.
@@ -239,6 +245,12 @@ function createStore<T>(
                 })
             );
         }
+        // now we need to remove the storeId from the keys
+        Object.keys(fullStore).forEach(actualKey => {
+            const newKey = actualKey.replace(`${storeId}:`, '');
+            fullStore[newKey] = fullStore[actualKey];
+            delete fullStore[actualKey];
+        });
         return fullStore as Serializable<T>;
     };
 
@@ -252,6 +264,7 @@ function createStore<T>(
 
             if (!isEncrypted) {
                 callback({
+                    key: key as string,
                     oldValue: changes[actualKey].oldValue,
                     newValue: changes[actualKey].newValue,
                 });
@@ -264,6 +277,7 @@ function createStore<T>(
             ]);
 
             callback({
+                key: key as string,
                 oldValue,
                 newValue,
             });
@@ -278,26 +292,48 @@ function createStore<T>(
     };
 
     // @ts-ignore
-    store.use = (key: keyof T, defaultValue?: T[typeof key]) => {
+    store.use = (key: keyof T | null, defaultValue?: key extends null ? T : T[typeof key]) => {
         // this handles the case where a user might want to explicitly pass undefined as a default value
         // if the defaultValue is not passed, we will use the default value from the defaults object.
         // This way `value` will always be of the correct type that is expected.
-        const [value, setValue] = useState(arguments.length === 2 ? defaultValue : defaults[key]);
+        const [value, setValue] = useState(
+            // @ts-ignore
+            // eslint-disable-next-line no-nested-ternary
+            arguments.length === 2 ? defaultValue : key === null ? defaults : defaults[key]
+        );
 
         useEffect(() => {
-            store.get(key).then(setValue as any);
+            if (key !== null) {
+                store.get(key).then(setValue as any);
 
-            const onChanged = ({ newValue }: DataChange<T[typeof key]>) => {
-                setValue(newValue as any);
+                const onChanged = ({ newValue }: DataChange<T[typeof key]>) => {
+                    setValue(newValue as any);
+                };
+                store.subscribe(key, onChanged);
+                return () => {
+                    store.unsubscribe(onChanged);
+                };
+            }
+
+            store.all().then(setValue as any);
+
+            const onChanged = (change: DataChange<T>) => {
+                const newValue: any = { ...value };
+                newValue[change.key] = change.newValue;
             };
-            store.subscribe(key, onChanged);
+            // @ts-ignore
+            Object.keys(defaults).forEach(k => store.subscribe(k, onChanged));
             return () => {
                 store.unsubscribe(onChanged);
             };
         }, [key]);
 
-        const set = async (newValue: T[typeof key]) => {
-            await store.set(key, newValue as any);
+        const set = async newValue => {
+            if (key === null) {
+                await store.set(newValue as any);
+            } else {
+                await store.set(key, newValue as any);
+            }
             setValue(newValue);
         };
 
@@ -366,7 +402,7 @@ export function createSessionStore<T>(storeId: string, defaults: StoreDefaults<T
 // interface MyStore {
 //     name: string;
 //     age: number;
-//     isCool: boolean;
+//     isCool?: boolean;
 // }
 // const store = createLocalStore<MyStore>('my-store', {
 //     age: 0,
