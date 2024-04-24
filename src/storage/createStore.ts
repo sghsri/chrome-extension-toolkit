@@ -83,7 +83,7 @@ export type Store<T = {}> = {
 
     /**
      * A react hook that allows you to get and set the value of the specified key in the store from a functional component.
-     * @param key the key to get the value of
+     * @param key the key to get the value of or null to get the entire store
      * @returns a tuple containing the value of the specified key, and a function to set the value
      */
     use<K extends keyof T | null, D extends K extends keyof T ? Serializable<T[K]> : T>(
@@ -92,7 +92,7 @@ export type Store<T = {}> = {
 
     /**
      * A react hook that allows you to get and set the value of the specified key in the store from a functional component.
-     * @param key the key to get the value of
+     * @param key the key to get the value of or null to get the entire store
      * @param defaultValue the default value to use if the key is not already set
      */
     use<K extends keyof T | null>(
@@ -320,6 +320,7 @@ function createStore<T>(
             const onChanged = (change: DataChange<T>) => {
                 const newValue: any = { ...value };
                 newValue[change.key] = change.newValue;
+                setValue(newValue);
             };
             // @ts-ignore
             Object.keys(defaults).forEach(k => store.subscribe(k, onChanged));
