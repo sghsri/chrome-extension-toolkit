@@ -89,7 +89,7 @@ export type Store<T = {}> = {
     use<K extends keyof T | null>(
         key: K
     ): [
-        K extends keyof T ? Serializable<T[K]> : T,
+        K extends keyof T ? Serializable<T[K]> : Serializable<T>,
         (value: K extends keyof T ? Serializable<T[K]> : Partial<Serializable<T>>) => Promise<void>
     ];
 
@@ -100,9 +100,9 @@ export type Store<T = {}> = {
      */
     use<K extends keyof T | null>(
         key: K,
-        defaultValue: K extends keyof T ? Serializable<T[K]> : T
+        defaultValue: K extends keyof T ? Serializable<T[K]> : Serializable<T>
     ): [
-        K extends keyof T ? Serializable<T[K]> : T,
+        K extends keyof T ? Serializable<T[K]> : Serializable<T>,
         (value: K extends keyof T ? Serializable<T[K]> : Partial<Serializable<T>>) => Promise<void>
     ];
 
