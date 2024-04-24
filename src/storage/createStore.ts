@@ -35,11 +35,16 @@ export type Store<T = {}> = {
     /**
      * A unique identifier for the store. This will be prepended to all keys in the store to avoid collisions.
      */
-    storeId: string;
+    readonly storeId: string;
     /**
      * The options that were passed to the createStore function
      */
-    options: StoreOptions;
+    readonly options: StoreOptions;
+
+    /**
+     * The default values for the store. These were passed to the createStore function and will be used to initialize the store if the key is not already set.
+     */
+    readonly defaults: StoreDefaults<T>;
     /**
      * Initializes the store by setting any keys that are not already set to their default values. This will be called automatically when you first access a getter or setter.
      */
@@ -58,7 +63,12 @@ export type Store<T = {}> = {
      * @param value the value to set the key to
      */
     set<K extends keyof T>(key: K, value: Serializable<T[K]>): Promise<void>;
-    set<K extends keyof T>(values: Partial<Serializable<T>>): Promise<void>;
+
+    /**
+     * Sets the store with the values in the object passed in.
+     * @param values an object containing the keys and values to set in the store
+     */
+    set(values: Partial<Serializable<T>>): Promise<void>;
 
     /**
      * Returns a promise that resolves to the entire contents of the store.
@@ -73,16 +83,19 @@ export type Store<T = {}> = {
     /**
      * A react hook that allows you to get and set the value of the specified key in the store from a functional component.
      * @param key the key to get the value of
-     * @param defaultValue an optional default value to use if the key is not already set
      * @returns a tuple containing the value of the specified key, and a function to set the value
      */
-    use<K extends keyof T, D extends Serializable<T[K]> | undefined = undefined>(
+    use<K extends keyof T, D extends Serializable<T[K]>>(key: K): [D, (value: D) => Promise<void>];
+
+    /**
+     * A react hook that allows you to get and set the value of the specified key in the store from a functional component.
+     * @param key the key to get the value of
+     * @param defaultValue the default value to use if the key is not already set
+     */
+    use<K extends keyof T>(
         key: K,
-        defaultValue?: D
-    ): [
-        D extends Serializable<T[K]> ? Serializable<T[K]> : Serializable<T[K]> | undefined,
-        (value: Serializable<T[K]>) => Promise<void>
-    ];
+        defaultValue: Serializable<T[K]>
+    ): [Serializable<T[K]>, (value: Serializable<T[K]>) => Promise<void>];
 
     /**
      * Subscribes to changes in the specified key in the store, and calls the specified function when the key changes.
@@ -133,6 +146,7 @@ function createStore<T>(
     }
 
     const store = {
+        defaults,
         storeId,
         options,
     } as Store<T>;
@@ -265,7 +279,10 @@ function createStore<T>(
 
     // @ts-ignore
     store.use = (key: keyof T, defaultValue?: T[typeof key]) => {
-        const [value, setValue] = useState(defaultValue);
+        // this handles the case where a user might want to explicitly pass undefined as a default value
+        // if the defaultValue is not passed, we will use the default value from the defaults object.
+        // This way `value` will always be of the correct type that is expected.
+        const [value, setValue] = useState(arguments.length === 2 ? defaultValue : defaults[key]);
 
         useEffect(() => {
             store.get(key).then(setValue as any);
@@ -345,3 +362,14 @@ export function createManagedStore<T>(storeId: string, defaults: StoreDefaults<T
 export function createSessionStore<T>(storeId: string, defaults: StoreDefaults<T>, options?: StoreOptions): Store<T> {
     return createStore(storeId, defaults, 'session', options);
 }
+
+// interface MyStore {
+//     name: string;
+//     age: number;
+//     isCool: boolean;
+// }
+// const store = createLocalStore<MyStore>('my-store', {
+//     age: 0,
+//     isCool: false,
+//     name: 'John Doe',
+// });
