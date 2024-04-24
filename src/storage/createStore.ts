@@ -318,9 +318,7 @@ function createStore<T>(
             store.all().then(setValue as any);
 
             const onChanged = (change: DataChange<T>) => {
-                const newValue: any = { ...value };
-                newValue[change.key] = change.newValue;
-                setValue(newValue);
+                setValue(prev => ({ ...prev, [change.key]: change.newValue } as any));
             };
             // @ts-ignore
             Object.keys(defaults).forEach(k => store.subscribe(k, onChanged));
