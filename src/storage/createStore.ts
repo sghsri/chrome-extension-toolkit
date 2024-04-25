@@ -1,6 +1,7 @@
+/* eslint-disable no-else-return */
 /* eslint-disable no-await-in-loop */
 import { Security } from 'src/storage/Security';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Serializable } from '..';
 
 /** A utility type that forces you to declare all the values specified in the type interface for a module. */
@@ -305,30 +306,29 @@ function createStore<T>(
             arguments.length === 2 ? defaultValue : key === null ? defaults : defaults[key]
         );
 
-        useEffect(() => {
-            if (key !== null) {
-                store.get(key).then(setValue as any);
+        const onChange = useCallback(({ key: k, newValue }: DataChange<T>) => {
+            if (key === null) {
+                setValue(prev => ({ ...prev, [k]: newValue } as any));
+            } else {
+                setValue(newValue as any);
+            }
+        }, []);
 
-                const onChanged = ({ newValue }: DataChange<T[typeof key]>) => {
-                    setValue(newValue as any);
-                };
-                store.subscribe(key, onChanged);
+        useEffect(() => {
+            if (key === null) {
+                store.all().then(setValue as any);
+                store.keys().forEach(k => store.subscribe(k, onChange as any));
                 return () => {
-                    store.unsubscribe(onChanged);
+                    store.keys().forEach(k => store.unsubscribe(onChange as any));
+                };
+            } else {
+                store.get(key).then(setValue as any);
+                store.subscribe(key, onChange as any);
+                return () => {
+                    store.unsubscribe(onChange as any);
                 };
             }
-
-            store.all().then(setValue as any);
-
-            const onChanged = (change: DataChange<T>) => {
-                setValue(prev => ({ ...prev, [change.key]: change.newValue } as any));
-            };
-            // @ts-ignore
-            Object.keys(defaults).forEach(k => store.subscribe(k, onChanged));
-            return () => {
-                store.unsubscribe(onChanged);
-            };
-        }, [key]);
+        }, []);
 
         const set = async newValue => {
             if (key === null) {
