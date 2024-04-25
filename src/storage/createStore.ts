@@ -306,13 +306,16 @@ function createStore<T>(
             arguments.length === 2 ? defaultValue : key === null ? defaults : defaults[key]
         );
 
-        const onChange = useCallback(({ key: k, newValue }: DataChange<T>) => {
-            if (key === null) {
-                setValue(prev => ({ ...prev, [k]: newValue } as any));
-            } else {
-                setValue(newValue as any);
-            }
-        }, []);
+        const onChange = useCallback(
+            ({ key: k, newValue }: DataChange<T>) => {
+                if (key === null) {
+                    setValue(prev => ({ ...prev, [k]: newValue } as any));
+                } else {
+                    setValue(newValue as any);
+                }
+            },
+            [key, setValue]
+        );
 
         useEffect(() => {
             if (key === null) {
@@ -328,7 +331,7 @@ function createStore<T>(
                     store.unsubscribe(onChange as any);
                 };
             }
-        }, []);
+        }, [key, onChange]);
 
         const set = async newValue => {
             if (key === null) {
