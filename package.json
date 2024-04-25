@@ -1,6 +1,6 @@
 {
   "name": "chrome-extension-toolkit",
-  "version": "0.0.72",
+  "version": "0.0.73",
   "description": "A template for creating npm packages using TypeScript and VSCode",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

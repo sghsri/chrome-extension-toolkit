@@ -113,6 +113,7 @@ export type Store<T = {}> = {
      * @param callback the function to call when the key changes
      */
     subscribe<K extends keyof T>(key: K, callback: OnChangedFunction<T[K]>): (changes, area) => void;
+    subscribe<K extends keyof T>(key: K[], callback: OnChangedFunction<T[K]>): (changes, area) => void;
 
     /**
      * Removes a subscription that was added with the subscribe function.
@@ -260,30 +261,29 @@ function createStore<T>(
 
     store.keys = () => keys as (keyof T & string)[];
 
-    store.subscribe = (key, callback) => {
+    store.subscribe = (key: string | string[], callback) => {
         const sub = async (changes, areaName) => {
-            const actualKey = `${storeId}:${key as string}`;
+            const keys = Array.isArray(key) ? key : [key];
+            const actualKeys = keys.map(k => `${storeId}:${k}`);
+
             if (areaName !== area) return;
-            if (!(actualKey in changes)) return;
 
-            if (!isEncrypted) {
+            // make sure that there are keys is in the changes object
+            const subKeys = Object.keys(changes).filter(k => actualKeys.includes(k));
+            if (!subKeys.length) return;
+
+            subKeys.forEach(async actualKey => {
+                const key = actualKey.replace(`${storeId}:`, '');
+                const [oldValue, newValue] = await Promise.all([
+                    isEncrypted ? security.decrypt(changes[actualKey].oldValue) : changes[actualKey].oldValue,
+                    isEncrypted ? security.decrypt(changes[actualKey].newValue) : changes[actualKey].newValue,
+                ]);
+
                 callback({
-                    key: key as string,
-                    oldValue: changes[actualKey].oldValue,
-                    newValue: changes[actualKey].newValue,
+                    key,
+                    oldValue,
+                    newValue,
                 });
-                return;
-            }
-
-            const [oldValue, newValue] = await Promise.all([
-                security.decrypt(changes[actualKey].oldValue),
-                security.decrypt(changes[actualKey].newValue),
-            ]);
-
-            callback({
-                key: key as string,
-                oldValue,
-                newValue,
             });
         };
 
@@ -320,7 +320,7 @@ function createStore<T>(
         useEffect(() => {
             if (key === null) {
                 store.all().then(setValue as any);
-                store.keys().forEach(k => store.subscribe(k, onChange as any));
+                store.subscribe(store.keys(), onChange as any);
                 return () => {
                     store.keys().forEach(k => store.unsubscribe(onChange as any));
                 };
@@ -404,13 +404,13 @@ export function createSessionStore<T>(storeId: string, defaults: StoreDefaults<T
     return createStore(storeId, defaults, 'session', options);
 }
 
-// interface MyStore {
-//     name: string;
-//     age: number;
-//     isCool?: boolean;
-// }
-// const store = createLocalStore<MyStore>('my-store', {
-//     age: 0,
-//     isCool: false,
-//     name: 'John Doe',
-// });
+interface MyStore {
+    name: string;
+    age: number;
+    isCool?: boolean;
+}
+const store = createLocalStore<MyStore>('my-store', {
+    age: 0,
+    isCool: false,
+    name: 'John Doe',
+});
