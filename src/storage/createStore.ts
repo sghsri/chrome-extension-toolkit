@@ -297,65 +297,50 @@ function createStore<T>(
 
     // @ts-ignore
     store.use = (key: keyof T | null, defaultValue?: key extends null ? T : T[typeof key]) => {
-        // this handles the case where a user might want to explicitly pass undefined as a default value
-        // if the defaultValue is not passed, we will use the default value from the defaults object.
-        // This way `value` will always be of the correct type that is expected.
-        const [value, setValue] = useState(
-            // @ts-ignore
-            // eslint-disable-next-line no-nested-ternary
-            arguments.length === 2 ? defaultValue : key === null ? defaults : defaults[key]
-        );
-
-        const onChange = useCallback(
-            ({ key: k, newValue }: DataChange<T>) => {
-                if (key === null) {
-                    setValue(prev => ({ ...prev, [k]: newValue } as any));
-                } else {
-                    setValue(newValue as any);
-                }
-            },
-            [key, setValue]
-        );
-        useEffect(() => {
-            let isActive = true; // Flag to handle race condition
-
-            async function init() {
-                if (key === null) {
-                    const allValues = await store.all();
-                    if (!isActive) return;
-                    // @ts-ignore
-                    setValue(allValues);
-                    const keys = store.keys();
-                    // @ts-ignore
-                    keys.forEach(k => store.subscribe(k, onChange));
-                    return () => {
-                        keys.forEach(k => store.unsubscribe(onChange));
-                    };
-                } else {
-                    const value = await store.get(key);
-                    if (!isActive) return;
-                    // @ts-ignore
-                    setValue(value);
-                    // @ts-ignore
-                    store.subscribe(key, onChange);
-                    return () => {
-                        store.unsubscribe(onChange);
-                    };
-                }
+        const initialValue: any = (() => {
+            // an explicit default value was passed, use it
+            if (arguments.length === 2) {
+                return defaultValue;
             }
+            // a key was passed, but no default value was passed, use the default value from the defaults object
+            if (key === null) {
+                return defaults;
+            }
+            // no key was passed, use the default value from the defaults object
+            return defaults[key];
+        })();
 
-            const cleanup = init(); // Execute init and capture the cleanup function
+        const [value, setValue] = useState(initialValue);
 
+        const onChange = ({ key: k, newValue }: DataChange<T>) => {
+            if (key === null) {
+                setValue(prev => ({ ...prev, [k]: newValue } as any));
+            } else {
+                setValue(newValue as any);
+            }
+        };
+
+        useEffect(() => {
+            if (key === null) {
+                store
+                    .all()
+                    .then(setValue)
+                    .then(() => {
+                        store.subscribe(store.keys(), onChange as any);
+                    });
+            } else {
+                store
+                    .get(key)
+                    .then(setValue)
+                    .then(() => {
+                        store.subscribe(key, onChange as any);
+                    });
+            }
             return () => {
-                isActive = false; // Set isActive to false when component unmounts or dependencies change
-                if (cleanup instanceof Promise) {
-                    cleanup.then(func => func && func()); // Ensure cleanup is called if it's asynchronous
-                } else if (cleanup) {
-                    // @ts-ignore
-                    cleanup(); // Cleanup directly if available immediately
-                }
+                store.unsubscribe(onChange as any);
             };
-        }, [key, onChange, store]); // Include dependencies
+        }, []);
+
         const set = async newValue => {
             if (key === null) {
                 await store.set(newValue as any);
@@ -427,13 +412,13 @@ export function createSessionStore<T>(storeId: string, defaults: StoreDefaults<T
     return createStore(storeId, defaults, 'session', options);
 }
 
-interface MyStore {
-    name: string;
-    age: number;
-    isCool?: boolean;
-}
-const store = createLocalStore<MyStore>('my-store', {
-    age: 0,
-    isCool: false,
-    name: 'John Doe',
-});
+// interface MyStore {
+//     name: string;
+//     age: number;
+//     isCool?: boolean;
+// }
+// const store = createLocalStore<MyStore>('my-store', {
+//     age: 0,
+//     isCool: false,
+//     name: 'John Doe',
+// });
