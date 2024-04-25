@@ -347,7 +347,6 @@ function createStore<T>(
             } else {
                 await store.set(key, newValue as any);
             }
-            setValue(newValue);
         };
 
         return [value, set] as any;
