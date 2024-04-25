@@ -316,23 +316,46 @@ function createStore<T>(
             },
             [key, setValue]
         );
-
         useEffect(() => {
-            if (key === null) {
-                store.all().then(setValue as any);
-                store.subscribe(store.keys(), onChange as any);
-                return () => {
-                    store.keys().forEach(k => store.unsubscribe(onChange as any));
-                };
-            } else {
-                store.get(key).then(setValue as any);
-                store.subscribe(key, onChange as any);
-                return () => {
-                    store.unsubscribe(onChange as any);
-                };
-            }
-        }, [key, onChange]);
+            let isActive = true; // Flag to handle race condition
 
+            async function init() {
+                if (key === null) {
+                    const allValues = await store.all();
+                    if (!isActive) return;
+                    // @ts-ignore
+                    setValue(allValues);
+                    const keys = store.keys();
+                    // @ts-ignore
+                    keys.forEach(k => store.subscribe(k, onChange));
+                    return () => {
+                        keys.forEach(k => store.unsubscribe(onChange));
+                    };
+                } else {
+                    const value = await store.get(key);
+                    if (!isActive) return;
+                    // @ts-ignore
+                    setValue(value);
+                    // @ts-ignore
+                    store.subscribe(key, onChange);
+                    return () => {
+                        store.unsubscribe(onChange);
+                    };
+                }
+            }
+
+            const cleanup = init(); // Execute init and capture the cleanup function
+
+            return () => {
+                isActive = false; // Set isActive to false when component unmounts or dependencies change
+                if (cleanup instanceof Promise) {
+                    cleanup.then(func => func && func()); // Ensure cleanup is called if it's asynchronous
+                } else if (cleanup) {
+                    // @ts-ignore
+                    cleanup(); // Cleanup directly if available immediately
+                }
+            };
+        }, [key, onChange, store]); // Include dependencies
         const set = async newValue => {
             if (key === null) {
                 await store.set(newValue as any);
