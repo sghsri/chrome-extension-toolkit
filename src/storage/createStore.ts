@@ -73,6 +73,12 @@ export type Store<T = {}> = {
     set(values: Partial<Serializable<T>>): Promise<void>;
 
     /**
+     * Removes a specific key from the store.
+     * @param key the key to remove from the store
+     */
+    remove<K extends keyof T>(key: K): Promise<void>;
+
+    /**
      * Returns a promise that resolves to the entire contents of the store.
      */
     all(): Promise<Serializable<T>>;
@@ -235,6 +241,15 @@ function createStore<T>(
         await chrome.storage[area].set({
             [actualKey]: isEncrypted ? await security.encrypt(value) : value,
         });
+    };
+
+    store.remove = async (key: string) => {
+        if (!hasInitialized) {
+            await store.initialize();
+        }
+
+        const actualKey = `${storeId}:${key}`;
+        await chrome.storage[area].remove(actualKey);
     };
 
     store.all = async () => {
