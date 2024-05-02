@@ -243,7 +243,7 @@ function createStore<T>(
         });
     };
 
-    store.remove = async (key: string) => {
+    store.remove = async (key: any) => {
         if (!hasInitialized) {
             await store.initialize();
         }
