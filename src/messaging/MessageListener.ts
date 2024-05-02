@@ -82,7 +82,7 @@ export class MessageListener<M> implements IMessageListener<M> {
                 sender,
             });
         } catch (error) {
-            Console.error(`[crx-kit]: Error handling message ${messageName}`, error, message, sender);
+            Console.error(`[crx-kit]: Error handling message ${messageName}`, { error, message, sender });
             if (this.onError) {
                 this.onError(error);
             }
