@@ -73,7 +73,11 @@ export class MessageListener<M> implements IMessageListener<M> {
         }
         try {
             if (this.isVerbose) {
-                Console.log(`[crx-kit]: message received: ${messageName}`, { data: message.data, sender });
+                Console.log(`[crx-kit]: message received: ${messageName}`, {
+                    name: messageName,
+                    data: message.data,
+                    sender,
+                });
             }
             // this message is for my current context, and I have a handler for it, so handle it
             handler({
@@ -82,7 +86,12 @@ export class MessageListener<M> implements IMessageListener<M> {
                 sender,
             });
         } catch (error) {
-            Console.error(`[crx-kit]: Error handling message ${messageName}`, { error, message, sender });
+            Console.error(`[crx-kit]: Error handling message ${messageName}`, {
+                name: messageName,
+                error,
+                message,
+                sender,
+            });
             if (this.onError) {
                 this.onError(error);
             }
