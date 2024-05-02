@@ -34,12 +34,9 @@ export class MessageListener<M> implements IMessageListener<M> {
     /**
      * An object that can be used to listen for and handle messages coming from another extension context.
      * @param handlers the message handlers for the messages that this listener will handle. When a message is received, the corresponding message handler is called.
-     * @param options options for modifying the behavior of the message listener.
      */
-    constructor(handlers: MessageHandler<M>, options: MessageListenerOptions = { verbose: false }) {
+    constructor(handlers: MessageHandler<M>) {
         this.handlers = handlers;
-        this.onError = options.onError;
-        this.isVerbose = Boolean(options.verbose);
 
         // we want to know what type of script we are running in so we can determine what endpoint we are (background or foreground)
         const scriptType = getScriptType();
@@ -93,17 +90,26 @@ export class MessageListener<M> implements IMessageListener<M> {
         return true;
     };
 
-    public listen() {
+    /**
+     * Listens for messages from the specified source.
+     * @param options - The options for the message listener.
+     */
+    public listen(options: MessageListenerOptions = { verbose: false }) {
+        this.isVerbose = options.verbose ?? false;
+        this.onError = options.onError;
         console.log(`[crx-kit]: ${this.toString()} listening for messages from ${this.listeningFor}`);
         chrome.runtime.onMessage.addListener(this.handleMessage);
     }
 
+    /**
+     * Stops listening for messages
+     */
     public unlisten() {
         console.log(`[crx-kit]: ${this.toString()} no longer listening for messages from ${this.listeningFor}`);
         chrome.runtime.onMessage.removeListener(this.handleMessage);
     }
 
-    public toString() {
+    private toString() {
         return `MessageListener(${this.myEndpoint})`;
     }
 }

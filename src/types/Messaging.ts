@@ -67,8 +67,5 @@ export interface IMessageListener<M> {
      * Stops listening for messages.
      */
     unlisten: () => void;
-    /**
-     * @returns A string representation of the message listener.
-     */
-    toString: () => string;
+
 }
