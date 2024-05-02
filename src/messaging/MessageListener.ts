@@ -2,6 +2,23 @@ import getScriptType, { ScriptType } from 'src/getScriptType';
 import { MessageHandler, IMessageListener, MessageEndpoint, Message, Serializable } from '../types';
 
 /**
+ * Options for configuring a message listener.
+ */
+export interface MessageListenerOptions {
+    /**
+     * A callback function that will be called when an error occurs.
+     * Useful if you want to log errors to a service like Sentry or Bugsnag.
+     * @param error The error that occurred.
+     */
+    onError?: (error: Error) => void;
+
+    /**
+     * A flag indicating whether verbose logging should be enabled.
+     */
+    verbose?: boolean;
+}
+
+/**
  * An object that can be used to listen for and handle messages coming from another extension context.
  */
 export class MessageListener<M> implements IMessageListener<M> {
@@ -12,19 +29,22 @@ export class MessageListener<M> implements IMessageListener<M> {
 
     private onError?: (error: Error) => void;
 
+    private isVerbose: boolean = false;
+
     /**
      * An object that can be used to listen for and handle messages coming from another extension context.
      * @param handlers the message handlers for the messages that this listener will handle. When a message is received, the corresponding message handler is called.
-     * @param onError an optional error handler that will be called if an error occurs while handling a message. Useful if you want to log errors to a service like Sentry or Bugsnag.
+     * @param options options for modifying the behavior of the message listener.
      */
-    constructor(handlers: MessageHandler<M>, onError?: (error: Error) => void) {
+    constructor(handlers: MessageHandler<M>, options: MessageListenerOptions = { verbose: false }) {
         this.handlers = handlers;
-        this.onError = onError;
+        this.onError = options.onError;
+        this.isVerbose = Boolean(options.verbose);
 
         // we want to know what type of script we are running in so we can determine what endpoint we are (background or foreground)
         const scriptType = getScriptType();
         if (!scriptType) {
-            throw new Error('Unable to determine extension script type.');
+            throw new Error('[crx-kit]: Unable to determine extension script type.');
         }
         this.scriptType = scriptType;
 
@@ -54,6 +74,9 @@ export class MessageListener<M> implements IMessageListener<M> {
             return true;
         }
         try {
+            if (this.isVerbose) {
+                console.log(`[crx-kit]: message received: ${messageName}`, message.data, sender);
+            }
             // this message is for my current context, and I have a handler for it, so handle it
             handler({
                 data: message.data as Serializable<typeof message.data>,
@@ -61,7 +84,7 @@ export class MessageListener<M> implements IMessageListener<M> {
                 sender,
             });
         } catch (error) {
-            console.error(`Error handling message ${messageName}`, error, message, sender);
+            console.error(`[crx-kit]: Error handling message ${messageName}`, error, message, sender);
             if (this.onError) {
                 this.onError(error);
             }
@@ -71,12 +94,12 @@ export class MessageListener<M> implements IMessageListener<M> {
     };
 
     public listen() {
-        console.log(`${this.toString()} listening for messages from ${this.listeningFor}`);
+        console.log(`[crx-kit]: ${this.toString()} listening for messages from ${this.listeningFor}`);
         chrome.runtime.onMessage.addListener(this.handleMessage);
     }
 
     public unlisten() {
-        console.log(`${this.toString()} no longer listening for messages from ${this.listeningFor}`);
+        console.log(`[crx-kit]: ${this.toString()} no longer listening for messages from ${this.listeningFor}`);
         chrome.runtime.onMessage.removeListener(this.handleMessage);
     }
 
