@@ -64,18 +64,21 @@ export function createMessenger<M>(destination: 'background' | 'foreground') {
 
     async function sendTabMessageToAllTabs(message: Message<M>) {
         const tabs = (await chrome.tabs.query({})).filter(tab => tab.id !== undefined && tab.url);
+        const promises: Promise<void>[] = [];
 
-        return Promise.all([
+        await Promise.all([
             ...tabs.map(tab => chrome.tabs.sendMessage(tab.id!, message)),
             chrome.runtime.sendMessage(message),
         ]);
+
+        return Promise.all(promises);
     }
 
     const sender = new Proxy({} as any, {
         get(target, prop) {
             const name = prop as keyof M;
             return async (data: MessageData<M, any>, options?: ForegroundMessageOptions) =>
-                new Promise((resolve, reject) => {
+                new Promise<void>((resolve, reject) => {
                     const message: Message<M> = {
                         name,
                         data,
@@ -87,10 +90,12 @@ export function createMessenger<M>(destination: 'background' | 'foreground') {
                         // for messages sent to the tabs, we want to send to the tabs using chrome.tabs.sendMessage,
                         const { tabId } = options;
                         if (typeof tabId === 'number') {
-                            return chrome.tabs.sendMessage(tabId, message, { frameId: options.frameId });
+                            return chrome.tabs
+                                .sendMessage(tabId, message, { frameId: options.frameId })
+                                .then(() => resolve());
                         }
                         if (tabId === 'ALL') {
-                            return sendTabMessageToAllTabs(message);
+                            return sendTabMessageToAllTabs(message).then(() => resolve());
                         }
                     }
                     return chrome.runtime.sendMessage(message, onMessageResponse(resolve, reject));
