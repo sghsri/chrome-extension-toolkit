@@ -16,6 +16,7 @@ export function createUseMessage<M>() {
                 if (message.name === name) {
                     callback(message.data);
                 }
+                return true;
             };
 
             chrome.runtime.onMessage.addListener(onMessage);
