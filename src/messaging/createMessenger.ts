@@ -64,23 +64,11 @@ export function createMessenger<M>(destination: 'background' | 'foreground') {
 
     async function sendTabMessageToAllTabs(message: Message<M>) {
         const tabs = (await chrome.tabs.query({})).filter(tab => tab.id !== undefined && tab.url);
-        const promises: Promise<void>[] = [];
-        tabs.forEach(tab =>
-            promises.push(
-                new Promise((resolve, reject) => {
-                    chrome.tabs.sendMessage(tab.id!, message, onMessageResponse(resolve, reject));
-                })
-            )
-        );
 
-        // and also send it using chrome.runtime.sendMessage for the extension popup or any extension page
-        promises.push(
-            new Promise((resolve, reject) => {
-                chrome.runtime.sendMessage(message, onMessageResponse(resolve, reject));
-            })
-        );
-
-        return Promise.all(promises);
+        return Promise.all([
+            ...tabs.map(tab => chrome.tabs.sendMessage(tab.id!, message)),
+            chrome.runtime.sendMessage(message),
+        ]);
     }
 
     const sender = new Proxy({} as any, {
@@ -99,12 +87,7 @@ export function createMessenger<M>(destination: 'background' | 'foreground') {
                         // for messages sent to the tabs, we want to send to the tabs using chrome.tabs.sendMessage,
                         const { tabId } = options;
                         if (typeof tabId === 'number') {
-                            return chrome.tabs.sendMessage(
-                                tabId,
-                                message,
-                                { frameId: options.frameId },
-                                onMessageResponse(resolve, reject)
-                            );
+                            return chrome.tabs.sendMessage(tabId, message, { frameId: options.frameId });
                         }
                         if (tabId === 'ALL') {
                             return sendTabMessageToAllTabs(message);
