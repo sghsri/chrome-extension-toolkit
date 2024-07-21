@@ -1,4 +1,4 @@
-import { MessageEndpoint, Message, MessageData, MessageResponse } from 'src/types';
+import { MessageEndpoint, Message, MessageData, MessageResponse } from '../types';
 /**
  * An object that can be used to send messages to the background script.
  */ export type BackgroundMessenger<M> = {
@@ -77,7 +77,7 @@ export function createMessenger<M>(destination: 'background' | 'foreground') {
                     }
                     if (tabId === 'ALL') {
                         const tabs = (await chrome.tabs.query({})).filter(tab => tab.id !== undefined && tab.url);
-                        return Promise.all([
+                        return Promise.any([
                             ...tabs.map(tab => chrome.tabs.sendMessage(tab.id!, message)),
                             chrome.runtime.sendMessage(message),
                         ]);

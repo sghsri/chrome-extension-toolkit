@@ -1,5 +1,4 @@
-import getScriptType, { ScriptType } from 'src/getScriptType';
-import { Console } from 'src/utils/Console';
+import getScriptType, { ScriptType } from '../getScriptType';
 import { MessageHandler, IMessageListener, MessageEndpoint, Message, Serializable } from '../types';
 
 /**
@@ -73,7 +72,7 @@ export class MessageListener<M> implements IMessageListener<M> {
         }
         try {
             if (this.isVerbose) {
-                Console.log(`[crx-kit]: message received: ${messageName}`, {
+                console.log(`[crx-kit]: message received: ${messageName}`, {
                     name: messageName,
                     data: message.data,
                     sender,
@@ -86,7 +85,7 @@ export class MessageListener<M> implements IMessageListener<M> {
                 sender,
             });
         } catch (error) {
-            Console.error(`[crx-kit]: Error handling message ${messageName}`, {
+            console.error(`[crx-kit]: Error handling message ${messageName}`, {
                 name: messageName,
                 error,
                 message,
@@ -107,7 +106,7 @@ export class MessageListener<M> implements IMessageListener<M> {
     public listen(options: MessageListenerOptions = { verbose: false }) {
         this.isVerbose = options.verbose ?? false;
         this.onError = options.onError;
-        Console.log(`[crx-kit]: ${this.toString()} listening for messages from ${this.listeningFor}`);
+        console.log(`[crx-kit]: ${this.toString()} listening for messages from ${this.listeningFor}`);
         chrome.runtime.onMessage.addListener(this.handleMessage);
     }
 
@@ -115,7 +114,7 @@ export class MessageListener<M> implements IMessageListener<M> {
      * Stops listening for messages
      */
     public unlisten() {
-        Console.log(`[crx-kit]: ${this.toString()} no longer listening for messages from ${this.listeningFor}`);
+        console.log(`[crx-kit]: ${this.toString()} no longer listening for messages from ${this.listeningFor}`);
         chrome.runtime.onMessage.removeListener(this.handleMessage);
     }
 
