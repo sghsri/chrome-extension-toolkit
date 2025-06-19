@@ -1,8 +1,8 @@
 export default {
     preset: 'ts-jest',
     testEnvironment: 'jsdom',
-    testMatch: ['**/test/**/*.test.ts'],
-    collectCoverageFrom: ['<rootDir>/src/**/*.ts', '!<rootDir>/src/types/**/*.ts'],
+    testMatch: ['**/test/**/*.test.ts', '**/test/**/*.test.tsx'],
+    collectCoverageFrom: ['<rootDir>/src/**/*.ts', '<rootDir>/src/**/*.tsx', '!<rootDir>/src/types/**/*.ts'],
     collectCoverage: true,
     coverageReporters: ['text', 'lcov', 'json-summary'],
     setupFilesAfterEnv: ['./test/jest.setup.ts'],
@@ -10,10 +10,15 @@ export default {
         '^src/(.*)': '<rootDir>/src/$1',
         '^test/(.*)': '<rootDir>/test/$1',
     },
+    transform: {
+        '^.+\\.(ts|tsx)$': 'ts-jest',
+    },
+    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
     globals: {
         'ts-jest': {
-            diagnostics: false,
-            isolatedModules: true,
+            tsconfig: {
+                jsx: 'react-jsx',
+            },
         },
     },
 };
