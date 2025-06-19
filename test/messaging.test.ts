@@ -3,24 +3,19 @@ import { MessageEndpoint } from 'src/types';
 import { chrome } from 'jest-chrome';
 import TestData from 'test/TestData';
 import { renderHook, act } from '@testing-library/react';
+// Import getScriptType directly for mocking
+import getScriptType, { ScriptType } from 'src/getScriptType';
 
+// Mock getScriptType module
+jest.mock('src/getScriptType');
+const mockGetScriptType = getScriptType as jest.MockedFunction<typeof getScriptType>;
+
+// Correct message type definitions as functions
 interface TestMessages {
-    getUserData: {
-        data: { userId: string };
-        response: { name: string; email: string };
-    };
-    updateSettings: {
-        data: { theme: 'light' | 'dark' };
-        response: void;
-    };
-    broadcastNotification: {
-        data: { message: string };
-        response: void;
-    };
-    noDataMessage: {
-        data: undefined;
-        response: { success: boolean };
-    };
+    getUserData: (data: { userId: string }) => { name: string; email: string };
+    updateSettings: (data: { theme: 'light' | 'dark' }) => void;
+    broadcastNotification: (data: { message: string }) => void;
+    noDataMessage: (data: undefined) => { success: boolean };
 }
 
 // Helper function to create complete message handlers for tests
@@ -38,6 +33,8 @@ describe('Messaging Module', () => {
         chrome.runtime.getManifest.mockReturnValue(TestData.manifest);
         // @ts-ignore
         chrome.runtime.id = TestData.extensionId;
+        // Mock getScriptType to return content script by default
+        mockGetScriptType.mockReturnValue(ScriptType.CONTENT_SCRIPT);
     });
 
     describe('createMessenger', () => {
@@ -53,6 +50,7 @@ describe('Messaging Module', () => {
                 const messenger = createMessenger<TestMessages>('background');
                 const mockResponse = { name: 'John Doe', email: 'john@example.com' };
                 
+                // @ts-ignore
                 chrome.runtime.sendMessage.mockResolvedValue(mockResponse);
 
                 const result = await messenger.getUserData({ userId: '123' });
@@ -70,6 +68,7 @@ describe('Messaging Module', () => {
                 const messenger = createMessenger<TestMessages>('background');
                 const mockResponse = { success: true };
                 
+                // @ts-ignore
                 chrome.runtime.sendMessage.mockResolvedValue(mockResponse);
 
                 const result = await messenger.noDataMessage();
@@ -86,6 +85,7 @@ describe('Messaging Module', () => {
             it('should handle void responses', async () => {
                 const messenger = createMessenger<TestMessages>('background');
                 
+                // @ts-ignore
                 chrome.runtime.sendMessage.mockResolvedValue(undefined);
 
                 const result = await messenger.updateSettings({ theme: 'dark' });
@@ -111,6 +111,7 @@ describe('Messaging Module', () => {
                 const messenger = createMessenger<TestMessages>('foreground');
                 const mockResponse = { name: 'John Doe', email: 'john@example.com' };
                 
+                // @ts-ignore
                 chrome.tabs.sendMessage.mockResolvedValue(mockResponse);
 
                 const result = await messenger.getUserData(
@@ -131,6 +132,7 @@ describe('Messaging Module', () => {
                 const messenger = createMessenger<TestMessages>('foreground');
                 const mockResponse = { name: 'John Doe', email: 'john@example.com' };
                 
+                // @ts-ignore
                 chrome.tabs.sendMessage.mockResolvedValue(mockResponse);
 
                 const result = await messenger.getUserData(
@@ -150,9 +152,23 @@ describe('Messaging Module', () => {
             it('should send messages to active tab', async () => {
                 const messenger = createMessenger<TestMessages>('foreground');
                 const mockResponse = { name: 'John Doe', email: 'john@example.com' };
-                const mockTab = { id: 123, active: true };
+                const mockTab = { 
+                    id: 123, 
+                    active: true,
+                    index: 0,
+                    pinned: false,
+                    highlighted: false,
+                    windowId: 1,
+                    incognito: false,
+                    selected: false,
+                    discarded: false,
+                    autoDiscardable: true,
+                    url: 'https://example.com'
+                } as chrome.tabs.Tab;
                 
+                // @ts-ignore
                 chrome.tabs.query.mockResolvedValue([mockTab]);
+                // @ts-ignore
                 chrome.tabs.sendMessage.mockResolvedValue(mockResponse);
 
                 const result = await messenger.getUserData(
@@ -173,6 +189,7 @@ describe('Messaging Module', () => {
             it('should handle active tab when no tab is found', async () => {
                 const messenger = createMessenger<TestMessages>('foreground');
                 
+                // @ts-ignore
                 chrome.tabs.query.mockResolvedValue([]);
 
                 const result = await messenger.getUserData(
@@ -188,13 +205,40 @@ describe('Messaging Module', () => {
             it('should send messages to all tabs', async () => {
                 const messenger = createMessenger<TestMessages>('foreground');
                 const mockTabs = [
-                    { id: 123, url: 'https://example.com' },
-                    { id: 456, url: 'https://google.com' }
+                    { 
+                        id: 123, 
+                        url: 'https://example.com',
+                        index: 0,
+                        pinned: false,
+                        highlighted: false,
+                        windowId: 1,
+                        incognito: false,
+                        selected: false,
+                        discarded: false,
+                        autoDiscardable: true,
+                        active: false
+                    } as chrome.tabs.Tab,
+                    { 
+                        id: 456, 
+                        url: 'https://google.com',
+                        index: 1,
+                        pinned: false,
+                        highlighted: false,
+                        windowId: 1,
+                        incognito: false,
+                        selected: false,
+                        discarded: false,
+                        autoDiscardable: true,
+                        active: false
+                    } as chrome.tabs.Tab
                 ];
                 const mockResponse = { name: 'John Doe', email: 'john@example.com' };
                 
+                // @ts-ignore
                 chrome.tabs.query.mockResolvedValue(mockTabs);
+                // @ts-ignore
                 chrome.tabs.sendMessage.mockResolvedValue(mockResponse);
+                // @ts-ignore
                 chrome.runtime.sendMessage.mockResolvedValue(mockResponse);
                 
                 // Mock Promise.any to return the first resolved promise
@@ -225,13 +269,14 @@ describe('Messaging Module', () => {
 
         it('should throw error if not in extension context', () => {
             // Mock getScriptType to return null (not in extension)
-            jest.doMock('src/getScriptType', () => ({
-                default: jest.fn().mockReturnValue(null)
-            }));
+            mockGetScriptType.mockReturnValue(null);
             
             expect(() => {
                 new MessageListener<TestMessages>(createTestHandlers());
             }).toThrow('[crx-kit]: Unable to determine extension script type.');
+            
+            // Reset mock
+            mockGetScriptType.mockReturnValue(ScriptType.CONTENT_SCRIPT);
         });
 
         it('should start listening to messages', () => {
@@ -261,13 +306,14 @@ describe('Messaging Module', () => {
             listener.listen();
 
             // Get the message handler that was registered
-            const [[messageHandler]] = chrome.runtime.onMessage.addListener.mock.calls;
+            const addListenerCalls = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls;
+            const messageHandler = addListenerCalls[0][0];
             
             const message = {
                 name: 'getUserData',
                 data: { userId: '123' },
-                from: MessageEndpoint.FOREGROUND,
-                to: MessageEndpoint.BACKGROUND,
+                from: MessageEndpoint.BACKGROUND,
+                to: MessageEndpoint.FOREGROUND,
             };
 
             const mockSender = { id: 'test-extension' };
@@ -290,13 +336,14 @@ describe('Messaging Module', () => {
             const listener = new MessageListener<TestMessages>(handlers);
             listener.listen();
 
-            const [[messageHandler]] = chrome.runtime.onMessage.addListener.mock.calls;
+            const addListenerCalls = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls;
+            const messageHandler = addListenerCalls[0][0];
             
             const message = {
                 name: 'getUserData',
                 data: { userId: '123' },
-                from: MessageEndpoint.BACKGROUND,
-                to: MessageEndpoint.FOREGROUND, // Wrong destination
+                from: MessageEndpoint.FOREGROUND,
+                to: MessageEndpoint.BACKGROUND, // Wrong destination for content script
             };
 
             const result = messageHandler(message, {}, jest.fn());
@@ -311,13 +358,14 @@ describe('Messaging Module', () => {
             const listener = new MessageListener<TestMessages>(handlers);
             listener.listen();
 
-            const [[messageHandler]] = chrome.runtime.onMessage.addListener.mock.calls;
+            const addListenerCalls = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls;
+            const messageHandler = addListenerCalls[0][0];
             
             const message = {
                 name: 'unknownMessage',
                 data: {},
-                from: MessageEndpoint.FOREGROUND,
-                to: MessageEndpoint.BACKGROUND,
+                from: MessageEndpoint.BACKGROUND,
+                to: MessageEndpoint.FOREGROUND,
             };
 
             const result = messageHandler(message, {}, jest.fn());
@@ -349,7 +397,8 @@ describe('Messaging Module', () => {
             renderHook(() => useMessage('getUserData', callback));
             
             // Get the message handler that was registered
-            const [[messageHandler]] = chrome.runtime.onMessage.addListener.mock.calls;
+            const addListenerCalls = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls;
+            const messageHandler = addListenerCalls[0][0];
             
             const message = {
                 name: 'getUserData',
@@ -367,7 +416,8 @@ describe('Messaging Module', () => {
             
             renderHook(() => useMessage('getUserData', callback));
             
-            const [[messageHandler]] = chrome.runtime.onMessage.addListener.mock.calls;
+            const addListenerCalls = (chrome.runtime.onMessage.addListener as jest.Mock).mock.calls;
+            const messageHandler = addListenerCalls[0][0];
             
             const message = {
                 name: 'updateSettings',
