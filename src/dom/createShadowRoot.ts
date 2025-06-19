@@ -18,9 +18,10 @@ interface HTMLShadowDOMElement extends HTMLDivElement {
  * from the parent site's styles to prevent conflicts.
  * @param id the id of the shadow root.
  * @param options the optional options for the shadow root.
+ * @param isolate whether or not to isolate the extension's document flow from the parent site's document flow.
  * @returns A Div that represents the shadow root with some additional methods added to it.
  */
-export function createShadowDOM(id: string, options?: ShadowRootInit): HTMLShadowDOMElement {
+export function createShadowDOM(id: string, options?: ShadowRootInit, isolate = false): HTMLShadowDOMElement {
     const html = document.querySelector('html');
     if (!html) {
         throw new Error('Could not find html element');
@@ -47,5 +48,8 @@ export function createShadowDOM(id: string, options?: ShadowRootInit): HTMLShado
     };
 
     html.appendChild(div);
+
+    if(isolate) document.body.style.isolation = 'isolate';
+
     return div as HTMLShadowDOMElement;
 }
